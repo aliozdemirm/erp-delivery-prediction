@@ -140,6 +140,30 @@ public class PredictionCalculationServiceTests
         Assert.Contains(failureReason, result.Error.Message);
     }
 
+    [Fact]
+    public async Task CalculateAsync_WhenCpmReturnsSuccessWithoutResult_ThrowsInvalidOperationException()
+    {
+        _erpBatchReaderMock.Setup(r => r.ReadAsync("ORD-1", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Result<ErpBatchSnapshot>.Success(CreateValidSnapshot()));
+        var constructor = typeof(CriticalPathOutcome).GetConstructor(
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic,
+            binder: null,
+            [typeof(CriticalPathStatus), typeof(CriticalPathResult), typeof(string)],
+            modifiers: null);
+        Assert.NotNull(constructor);
+        var invalidOutcome = (CriticalPathOutcome)constructor.Invoke(
+            [CriticalPathStatus.Success, null, null]);
+        _cpmMock.Setup(c => c.Calculate(It.IsAny<PredictionContext>()))
+            .Returns(invalidOutcome);
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => _service.CalculateAsync("ORD-1"));
+
+        Assert.Equal(
+            "A successful critical path outcome must contain a result.",
+            exception.Message);
+    }
+
     private static ErpBatchSnapshot CreateValidSnapshot() =>
         new(
             DateTimeOffset.UtcNow,

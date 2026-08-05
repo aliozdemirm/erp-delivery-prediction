@@ -12,7 +12,9 @@ public static class ApplicationPredictionServiceCollectionExtensions
         services.AddTransient<ProcurementResolver>();
         services.AddTransient<ShippingResolver>();
         services.AddTransient<CapacityResolver>();
-        
+
+        services.AddTransient<RuleBasedPredictionEngine>();
+
         return services;
     }
 }

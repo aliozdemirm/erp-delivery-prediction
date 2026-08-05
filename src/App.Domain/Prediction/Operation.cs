@@ -1,10 +1,29 @@
 namespace App.Domain.Prediction;
 
 /// <summary>
-/// Placeholder element type for PredictionContext.Operations (SAD §9.4). Intentionally
-/// empty — internal structure is out of scope for T-502 and will be defined by the task
-/// that first needs this data.
+/// Element type for PredictionContext.Operations (SAD §9.4). Extended by T-369 with the
+/// routing operation reference and its calculated duration; the parameterless constructor
+/// is kept so existing callers are unaffected.
 /// </summary>
 public sealed class Operation
 {
+    public string? OperationReference { get; }
+
+    public long DurationMinutes { get; }
+
+    public Operation()
+    {
+    }
+
+    public Operation(string operationReference, long durationMinutes)
+    {
+        ArgumentNullException.ThrowIfNull(operationReference);
+        if (durationMinutes < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(durationMinutes), durationMinutes, "Duration cannot be negative.");
+        }
+
+        OperationReference = operationReference;
+        DurationMinutes = durationMinutes;
+    }
 }

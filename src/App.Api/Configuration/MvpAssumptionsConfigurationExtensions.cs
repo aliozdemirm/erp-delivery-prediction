@@ -29,6 +29,7 @@ public static class MvpAssumptionsConfigurationExtensions
                 options => options.Shipping.FallbackDurationMinutes is null or > 0,
                 "Shipping fallback duration must be null or greater than zero.")
             .ValidateOnStart();
+        services.AddSingleton(sp => sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<MvpAssumptionsOptions>>().Value);
 
         return services;
     }

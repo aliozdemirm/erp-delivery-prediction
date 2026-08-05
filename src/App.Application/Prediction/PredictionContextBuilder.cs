@@ -3,7 +3,7 @@ using App.Domain.Prediction;
 
 namespace App.Application.Prediction;
 
-public sealed class PredictionContextBuilder
+public sealed class PredictionContextBuilder : IPredictionContextBuilder
 {
     public (DataSufficiency Status, PredictionContext? Context) Build(ErpBatchSnapshot snapshot)
     {

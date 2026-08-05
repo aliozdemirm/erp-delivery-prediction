@@ -74,16 +74,7 @@ public class PredictionCalculationServiceTests
     [Fact]
     public async Task CalculateAsync_WhenSuccessful_ReturnsCorrectDatesAndTimeline()
     {
-        var snapshot = new ErpBatchSnapshot(
-            DateTimeOffset.UtcNow,
-            new OrderReadDto("ORD-1", DateTimeOffset.UtcNow, null, null),
-            new[] { new OrderItemReadDto("ORD-1", "ITEM-1", "PROD-1", 10, "EA") },
-            new[] { new ProductReadDto("PROD-1", "Product 1", "EA"), new ProductReadDto("COMP-1", "Component 1", "EA") },
-            new[] { new BomItemReadDto("PROD-1", "COMP-1", 1, "EA", null) },
-            new[] { new StockLevelReadDto("COMP-1", "WH1", 10, 0, 10) },
-            Array.Empty<OpenPurchaseOrderReadDto>(),
-            new[] { new WorkOrderReadDto("WO-1", null, "ORD-1", "PROD-1", new RoutingReadDto("RT-1", new[] { new OperationReadDto("OP-1", 10, "WC-1", 60, Array.Empty<string>()) })) }
-        );
+        var snapshot = CreateValidSnapshot();
         _erpBatchReaderMock.Setup(r => r.ReadAsync("ORD-1", It.IsAny<CancellationToken>()))
             .ReturnsAsync(Result<ErpBatchSnapshot>.Success(snapshot));
 
@@ -108,4 +99,67 @@ public class PredictionCalculationServiceTests
         Assert.Equal(_now, result.Value.Timeline[0].EstimatedStart);
         Assert.Equal(_now.AddMinutes(60), result.Value.Timeline[0].EstimatedEnd);
     }
+
+    [Fact]
+    public async Task CalculateAsync_WhenCpmDetectsCycle_ReturnsSpecificFailure()
+    {
+        _erpBatchReaderMock.Setup(r => r.ReadAsync("ORD-1", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Result<ErpBatchSnapshot>.Success(CreateValidSnapshot()));
+        const string failureReason = "Cycle detected in operation graph.";
+        _cpmMock.Setup(c => c.Calculate(It.IsAny<PredictionContext>()))
+            .Returns(CriticalPathOutcome.Failure(CriticalPathStatus.CycleDetected, failureReason));
+
+        var result = await _service.CalculateAsync("ORD-1");
+
+        Assert.False(result.IsSuccess);
+        Assert.NotNull(result.Error);
+        Assert.Equal("CPM.CycleDetected", result.Error.Code);
+        Assert.NotEqual("CPM.Failed", result.Error.Code);
+        Assert.Equal(ErrorType.Validation, result.Error.Type);
+        Assert.Contains(failureReason, result.Error.Message);
+    }
+
+    [Fact]
+    public async Task CalculateAsync_WhenCpmFindsMissingPredecessor_ReturnsSpecificFailure()
+    {
+        _erpBatchReaderMock.Setup(r => r.ReadAsync("ORD-1", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Result<ErpBatchSnapshot>.Success(CreateValidSnapshot()));
+        const string failureReason = "Operation OP-20 references missing predecessor OP-MISSING.";
+        _cpmMock.Setup(c => c.Calculate(It.IsAny<PredictionContext>()))
+            .Returns(CriticalPathOutcome.Failure(
+                CriticalPathStatus.MissingPredecessorReference,
+                failureReason));
+
+        var result = await _service.CalculateAsync("ORD-1");
+
+        Assert.False(result.IsSuccess);
+        Assert.NotNull(result.Error);
+        Assert.Equal("CPM.MissingPredecessorReference", result.Error.Code);
+        Assert.NotEqual("CPM.Failed", result.Error.Code);
+        Assert.Equal(ErrorType.Validation, result.Error.Type);
+        Assert.Contains(failureReason, result.Error.Message);
+    }
+
+    private static ErpBatchSnapshot CreateValidSnapshot() =>
+        new(
+            DateTimeOffset.UtcNow,
+            new OrderReadDto("ORD-1", DateTimeOffset.UtcNow, null, null),
+            [new OrderItemReadDto("ORD-1", "ITEM-1", "PROD-1", 10, "EA")],
+            [
+                new ProductReadDto("PROD-1", "Product 1", "EA"),
+                new ProductReadDto("COMP-1", "Component 1", "EA")
+            ],
+            [new BomItemReadDto("PROD-1", "COMP-1", 1, "EA", null)],
+            [new StockLevelReadDto("COMP-1", "WH1", 10, 0, 10)],
+            Array.Empty<OpenPurchaseOrderReadDto>(),
+            [
+                new WorkOrderReadDto(
+                    "WO-1",
+                    null,
+                    "ORD-1",
+                    "PROD-1",
+                    new RoutingReadDto(
+                        "RT-1",
+                        [new OperationReadDto("OP-1", 10, "WC-1", 60, Array.Empty<string>())]))
+            ]);
 }

@@ -60,9 +60,26 @@ public sealed class PredictionCalculationService : IPredictionCalculationService
 
         // 4. Critical Path Method
         var cpmOutcome = _criticalPathCalculator.Calculate(context);
-        if (cpmOutcome.Status != CriticalPathStatus.Success || cpmOutcome.Result is null)
+        switch (cpmOutcome.Status)
         {
-            return Result<RuleBasedPredictionResult>.Failure(new Error("CPM.Failed", $"CPM failed: {cpmOutcome.FailureReason}", ErrorType.Validation));
+            case CriticalPathStatus.Success when cpmOutcome.Result is null:
+                throw new InvalidOperationException("A successful critical path outcome must contain a result.");
+            case CriticalPathStatus.Success:
+                break;
+            case CriticalPathStatus.CycleDetected:
+                return Result<RuleBasedPredictionResult>.Failure(
+                    new Error(
+                        "CPM.CycleDetected",
+                        $"CPM failed: {cpmOutcome.FailureReason}",
+                        ErrorType.Validation));
+            case CriticalPathStatus.MissingPredecessorReference:
+                return Result<RuleBasedPredictionResult>.Failure(
+                    new Error(
+                        "CPM.MissingPredecessorReference",
+                        $"CPM failed: {cpmOutcome.FailureReason}",
+                        ErrorType.Validation));
+            default:
+                throw new InvalidOperationException($"Unsupported critical path status: {cpmOutcome.Status}.");
         }
 
         // 5. Calendar (Calculate End Date)

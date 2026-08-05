@@ -3,7 +3,7 @@ using App.Domain.Prediction;
 
 namespace App.Application.Prediction.Resolvers;
 
-public sealed class ProcurementResolver
+public sealed class ProcurementResolver : IProcurementResolver
 {
     public FallbackResult<DateTimeOffset> ResolveAvailabilityDate(MaterialPurchaseOrder? openPo, DateTimeOffset currentTime, MvpAssumptionsOptions options)
     {

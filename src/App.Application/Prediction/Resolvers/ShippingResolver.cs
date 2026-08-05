@@ -2,7 +2,7 @@ using App.Application.Contracts.Configuration;
 
 namespace App.Application.Prediction.Resolvers;
 
-public sealed class ShippingResolver
+public sealed class ShippingResolver : IShippingResolver
 {
     public FallbackResult<TimeSpan?> ResolveShippingDuration(long? actualShippingDurationMinutes, MvpAssumptionsOptions options)
     {

@@ -13,7 +13,9 @@ public static class ApplicationPredictionServiceCollectionExtensions
         services.AddTransient<ShippingResolver>();
         services.AddTransient<CapacityResolver>();
 
+        services.AddTransient<App.Domain.Prediction.ICriticalPathCalculator, App.Domain.Prediction.CriticalPathCalculator>();
         services.AddTransient<RuleBasedPredictionEngine>();
+        services.AddTransient<IPredictionCalculationService, PredictionCalculationService>();
 
         return services;
     }

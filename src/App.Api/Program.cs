@@ -4,6 +4,7 @@ using App.Application.IntegrationLogging;
 using App.Infrastructure.Clock;
 using App.Infrastructure.Security;
 using App.Infrastructure.Shipping;
+using App.Integration.MockErp;
 using App.Persistence;
 using App.Persistence.IntegrationLogging;
 using App.Api.Configuration;
@@ -34,6 +35,7 @@ builder.Services.AddScoped<IIntegrationLogWriter, IntegrationLogWriter>();
 builder.Services.AddInfrastructureSecurity(builder.Configuration);
 builder.Services.AddShippingLookup();
 builder.Services.AddSystemClock();
+builder.Services.AddMockErpDataProvider(builder.Configuration);
 builder.Services.AddErpBatchReader();
 builder.Services.AddPredictionServices();
 builder.Services

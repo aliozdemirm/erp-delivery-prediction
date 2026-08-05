@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 
 namespace App.Integration.Tests.MockErp;
 
-public sealed class ErpBatchReaderIntegrationTests : IClassFixture<WebApplicationFactory<Program>>
+public sealed class ErpBatchReaderIntegrationTests : IClassFixture<WebApplicationFactory<global::MockErp.Api.Controllers.OrdersController>>
 {
     private readonly IErpBatchReader _batchReader;
 
@@ -21,7 +21,7 @@ public sealed class ErpBatchReaderIntegrationTests : IClassFixture<WebApplicatio
         public Task WriteAsync(IntegrationLogRequest request, CancellationToken cancellationToken = default) => Task.CompletedTask;
     }
 
-    public ErpBatchReaderIntegrationTests(WebApplicationFactory<Program> factory)
+    public ErpBatchReaderIntegrationTests(WebApplicationFactory<global::MockErp.Api.Controllers.OrdersController> factory)
     {
         var client = factory.CreateClient(new WebApplicationFactoryClientOptions
         {

@@ -5,11 +5,11 @@ using Microsoft.AspNetCore.Mvc.Testing;
 
 namespace App.Integration.Tests.MockErp;
 
-public sealed class RuntimeSeedProviderIntegrationTests : IClassFixture<WebApplicationFactory<Program>>
+public sealed class RuntimeSeedProviderIntegrationTests : IClassFixture<WebApplicationFactory<global::MockErp.Api.Controllers.OrdersController>>
 {
     private readonly IErpDataProvider _provider;
 
-    public RuntimeSeedProviderIntegrationTests(WebApplicationFactory<Program> factory)
+    public RuntimeSeedProviderIntegrationTests(WebApplicationFactory<global::MockErp.Api.Controllers.OrdersController> factory)
     {
         var client = factory.CreateClient(new WebApplicationFactoryClientOptions
         {

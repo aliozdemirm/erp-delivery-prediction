@@ -72,6 +72,6 @@ public sealed class ErpBatchReaderIntegrationTests : IClassFixture<WebApplicatio
         var result = await _batchReader.ReadAsync("NON-EXISTENT-ORDER");
 
         Assert.True(result.IsFailure);
-        Assert.Equal("ErpBatchReader.OrderNotFound", result.Error.Code);
+        Assert.Equal("ErpBatchReader.OrderNotFound", result.Error?.Code);
     }
 }

@@ -65,7 +65,7 @@ public class ErpBatchReaderTests
         var result = await reader.ReadAsync("ORD-1");
 
         Assert.True(result.IsFailure);
-        Assert.Equal("ErpBatchReader.OrderNotFound", result.Error.Code);
+        Assert.Equal("ErpBatchReader.OrderNotFound", result.Error?.Code);
     }
 
     [Fact]

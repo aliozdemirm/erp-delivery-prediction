@@ -25,10 +25,15 @@ public static class ApplicationPredictionServiceCollectionExtensions
             App.Domain.Prediction.CriticalPathCalculator>();
 
         services.AddTransient<RuleBasedPredictionEngine>();
+        services.AddTransient<PredictionResultMapper>();
 
         services.AddTransient<
             IPredictionCalculationService,
             PredictionCalculationService>();
+
+        services.AddTransient<
+            IWhatIfPredictionCalculationService,
+            WhatIfPredictionCalculationService>();
 
         return services;
     }

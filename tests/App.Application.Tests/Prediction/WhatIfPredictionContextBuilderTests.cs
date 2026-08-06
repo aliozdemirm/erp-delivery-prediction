@@ -508,6 +508,11 @@ public sealed class WhatIfPredictionContextBuilderTests
             return Task.FromResult(ProductToReturn);
         }
 
+        public Task<IReadOnlyList<ProductReadDto>> GetProductsAsync(
+            CancellationToken cancellationToken) =>
+            throw new InvalidOperationException(
+                "What-If context construction must not list ERP products.");
+
         public Task<IReadOnlyList<BomItemReadDto>> GetProductBomAsync(
             string productReference,
             CancellationToken cancellationToken)

@@ -11,6 +11,7 @@ using App.Api.Configuration;
 using App.Application.Contracts.Configuration;
 using App.Application.Erp;
 using App.Application.Prediction;
+using App.Application.Prediction.Demo;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -37,6 +38,7 @@ builder.Services.AddShippingLookup();
 builder.Services.AddSystemClock();
 builder.Services.AddMockErpDataProvider(builder.Configuration);
 builder.Services.AddErpBatchReader();
+builder.Services.AddDemoWorkOrderSupport(builder.Configuration);
 builder.Services.AddPredictionServices();
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -59,6 +61,14 @@ var jsonPath = Path.Combine(builder.Environment.ContentRootPath, "mvp-assumption
 var jsonContent = File.ReadAllText(jsonPath);
 var logger = app.Services.GetRequiredService<ILogger<Program>>();
 CategoryAFieldGuard.Validate(jsonContent, options, logger);
+
+var demoOptions = app.Services.GetRequiredService<DemoWorkOrderOptions>();
+if (demoOptions.EnableSyntheticWorkOrder)
+{
+    logger.LogWarning(
+        "Demo:EnableSyntheticWorkOrder is enabled. Synthetic, non-ERP-verified DEMO-* work order data " +
+        "may be injected for orders with no real routing data. This must not be used in production.");
+}
 
 // Global exception handling must run before any other middleware that could throw.
 app.UseExceptionHandler();

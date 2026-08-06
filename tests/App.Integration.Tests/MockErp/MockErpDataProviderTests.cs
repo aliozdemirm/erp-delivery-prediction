@@ -16,7 +16,7 @@ public sealed class MockErpDataProviderTests
     public void Provider_ImplementsExactPort()
     {
         Assert.True(typeof(IErpDataProvider).IsAssignableFrom(typeof(MockErpDataProvider)));
-        Assert.Equal(9, typeof(IErpDataProvider).GetMethods().Length);
+        Assert.Equal(10, typeof(IErpDataProvider).GetMethods().Length);
     }
 
     [Fact]
@@ -128,6 +128,28 @@ public sealed class MockErpDataProviderTests
 
         Assert.Equal(new DateTimeOffset(2026, 12, 25, 0, 0, 0, TimeSpan.Zero), order!.RequestedDeliveryDateTime);
         Assert.Equal(TimeSpan.Zero, order.RequestedDeliveryDateTime.Offset);
+    }
+
+    [Fact]
+    public async Task OrderSummaries_MapsAllOrders_WithASingleBulkRequest()
+    {
+        var handler = new RecordingHandler(Json(new object[]
+        {
+            new { id = "SO-1", productId = "P-1", quantity = 2, requestedDeliveryDate = "2026-12-25" },
+            new { id = "SO-2", productId = "P-2", quantity = 5, requestedDeliveryDate = "2026-01-01" },
+        }));
+        var (provider, _) = Create(handler);
+
+        var summaries = await provider.GetOrderSummariesAsync(default);
+
+        Assert.Equal(2, summaries.Count);
+        Assert.Equal("SO-1", summaries[0].OrderReference);
+        Assert.Equal("P-1", summaries[0].ProductReference);
+        Assert.Equal(2m, summaries[0].Quantity);
+        Assert.Equal(new DateTimeOffset(2026, 12, 25, 0, 0, 0, TimeSpan.Zero), summaries[0].RequestedDeliveryDateTime);
+        Assert.Equal("SO-2", summaries[1].OrderReference);
+        Assert.Single(handler.Requests);
+        Assert.Equal("/api/orders", handler.Requests[0].Uri.AbsolutePath);
     }
 
     [Fact]

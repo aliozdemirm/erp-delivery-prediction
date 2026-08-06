@@ -25,6 +25,9 @@ public class ErpBatchReaderTests
         public Task<OrderReadDto?> GetOrderAsync(string orderReference, CancellationToken cancellationToken)
             => Task.FromResult(OrderToReturn);
 
+        public Task<IReadOnlyList<OrderSummaryReadDto>> GetOrderSummariesAsync(CancellationToken cancellationToken)
+            => throw new NotImplementedException();
+
         public Task<IReadOnlyList<OrderItemReadDto>> GetOrderItemsAsync(string orderReference, CancellationToken cancellationToken)
             => Task.FromResult<IReadOnlyList<OrderItemReadDto>>(OrderItemsToReturn ?? new List<OrderItemReadDto>());
 

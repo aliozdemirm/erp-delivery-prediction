@@ -8,6 +8,9 @@ public interface IErpDataProvider
         string orderReference,
         CancellationToken cancellationToken);
 
+    Task<IReadOnlyList<OrderSummaryReadDto>> GetOrderSummariesAsync(
+        CancellationToken cancellationToken);
+
     Task<IReadOnlyList<OrderItemReadDto>> GetOrderItemsAsync(
         string orderReference,
         CancellationToken cancellationToken);

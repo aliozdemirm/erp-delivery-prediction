@@ -74,6 +74,9 @@ public sealed class ShippingRouteLookupServiceTests
         public Task<OrderReadDto?> GetOrderAsync(string orderReference, CancellationToken cancellationToken) =>
             throw new NotSupportedException();
 
+        public Task<IReadOnlyList<OrderSummaryReadDto>> GetOrderSummariesAsync(CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
         public Task<IReadOnlyList<OrderItemReadDto>> GetOrderItemsAsync(string orderReference, CancellationToken cancellationToken) =>
             throw new NotSupportedException();
 

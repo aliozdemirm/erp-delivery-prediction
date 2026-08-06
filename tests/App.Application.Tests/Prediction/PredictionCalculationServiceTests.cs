@@ -38,15 +38,17 @@ public class PredictionCalculationServiceTests
         var engine = new RuleBasedPredictionEngine(procurementResolver, capacityResolver, _clockMock.Object, options);
         var contextBuilder = new PredictionContextBuilder();
         var shippingResolver = new ShippingResolver();
+        var resultMapper = new PredictionResultMapper(
+            _clockMock.Object,
+            options,
+            shippingResolver);
 
         _service = new PredictionCalculationService(
             _erpBatchReaderMock.Object,
             contextBuilder,
             engine,
             _cpmMock.Object,
-            _clockMock.Object,
-            options,
-            shippingResolver);
+            resultMapper);
     }
 
     [Fact]

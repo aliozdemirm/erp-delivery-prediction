@@ -20,6 +20,20 @@ const result: RuleBasedPredictionResult = {
   timeline: [{ operationRef: 'CUT-10', estimatedStart: '2026-08-05T08:00:00Z', estimatedEnd: '2026-08-06T08:00:00Z', isCritical: true }],
 };
 
+const demoCriticalPathResult: RuleBasedPredictionResult = {
+  ...result,
+  criticalPathOperations: ['DEMO-OP-10'],
+  timeline: [{ operationRef: 'CUT-10', estimatedStart: '2026-08-05T08:00:00Z', estimatedEnd: '2026-08-06T08:00:00Z', isCritical: true }],
+};
+
+const demoTimelineResult: RuleBasedPredictionResult = {
+  ...result,
+  criticalPathOperations: ['CUT-10'],
+  timeline: [{ operationRef: 'DEMO-OP-20', estimatedStart: '2026-08-05T08:00:00Z', estimatedEnd: '2026-08-06T08:00:00Z', isCritical: true }],
+};
+
+const DEMO_BANNER_TEXT = 'Sentetik demo veri kullanılıyor. Bu operasyonlar ERP tarafından doğrulanmamıştır.';
+
 async function submit(reference = 'ORD-1001') {
   const user = userEvent.setup();
   await user.type(screen.getByLabelText('Order Reference'), reference);
@@ -97,5 +111,63 @@ describe('Dashboard', () => {
     await submit();
     rejectRequest(error);
     await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('Calculation failed'));
+  });
+
+  it('shows the synthetic demo data banner when criticalPathOperations contains a DEMO- reference', async () => {
+    calculateMock.mockResolvedValueOnce(demoCriticalPathResult);
+    render(<Dashboard />);
+    await submit();
+    expect(await screen.findByText(DEMO_BANNER_TEXT)).toBeVisible();
+  });
+
+  it('shows the synthetic demo data banner when timeline contains a DEMO- operationRef', async () => {
+    calculateMock.mockResolvedValueOnce(demoTimelineResult);
+    render(<Dashboard />);
+    await submit();
+    expect(await screen.findByText(DEMO_BANNER_TEXT)).toBeVisible();
+  });
+
+  it('does not show the demo data banner for a normal ERP-backed result', async () => {
+    calculateMock.mockResolvedValueOnce(result);
+    render(<Dashboard />);
+    await submit();
+    expect(await screen.findByText(/Summary for ORD-1001/)).toBeVisible();
+    expect(screen.queryByText(DEMO_BANNER_TEXT)).not.toBeInTheDocument();
+  });
+
+  it('does not show the demo data banner during the loading state', async () => {
+    calculateMock.mockImplementationOnce(() => new Promise(() => undefined));
+    render(<Dashboard />);
+    await submit();
+    expect(screen.getByRole('status')).toHaveTextContent('Calculating prediction...');
+    expect(screen.queryByText(DEMO_BANNER_TEXT)).not.toBeInTheDocument();
+  });
+
+  it('does not show the demo data banner during the validation error state', async () => {
+    let rejectRequest: (reason: unknown) => void = () => undefined;
+    calculateMock.mockImplementation(() => new Promise((_, reject) => { rejectRequest = reject; }));
+    render(<Dashboard />);
+    await submit();
+    rejectRequest(new PredictionApiError('More routing data is required.', 'validation', 400, 'Data.Insufficient'));
+    await screen.findByRole('alert');
+    expect(screen.queryByText(DEMO_BANNER_TEXT)).not.toBeInTheDocument();
+  });
+
+  it('does not show the demo data banner during the calculation failure state', async () => {
+    let rejectRequest: (reason: unknown) => void = () => undefined;
+    calculateMock.mockImplementation(() => new Promise((_, reject) => { rejectRequest = reject; }));
+    render(<Dashboard />);
+    await submit();
+    rejectRequest(new PredictionApiError('Server unavailable.', 'calculationFailure', 500));
+    await screen.findByRole('alert');
+    expect(screen.queryByText(DEMO_BANNER_TEXT)).not.toBeInTheDocument();
+  });
+
+  it('exposes the demo data banner as an accessible alert', async () => {
+    calculateMock.mockResolvedValueOnce(demoCriticalPathResult);
+    render(<Dashboard />);
+    await submit();
+    const banner = await screen.findByRole('alert');
+    expect(banner).toHaveTextContent(DEMO_BANNER_TEXT);
   });
 });

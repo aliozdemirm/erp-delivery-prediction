@@ -24,6 +24,13 @@ function EmptyMessage({ children }: { children: string }) {
   return <Typography color="text.secondary">{children}</Typography>;
 }
 
+const DEMO_REFERENCE_PREFIX = 'DEMO-';
+
+function hasSyntheticDemoData(result: RuleBasedPredictionResult): boolean {
+  return result.criticalPathOperations.some((ref) => ref.startsWith(DEMO_REFERENCE_PREFIX))
+    || result.timeline.some((operation) => operation.operationRef.startsWith(DEMO_REFERENCE_PREFIX));
+}
+
 export default function Dashboard() {
   const [orderReference, setOrderReference] = useState('');
   const [state, setState] = useState<DashboardState>({ status: 'idle' });
@@ -106,7 +113,13 @@ export default function Dashboard() {
 
 function PredictionResultView({ result }: { result: RuleBasedPredictionResult }) {
   return (
-    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 4 }}>
+    <>
+      {hasSyntheticDemoData(result) && (
+        <Alert severity="warning" role="alert" sx={{ mb: 4 }}>
+          Sentetik demo veri kullanılıyor. Bu operasyonlar ERP tarafından doğrulanmamıştır.
+        </Alert>
+      )}
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 4 }}>
       <Card component="section">
         <CardContent>
           <Typography variant="h6" component="h2">Summary for {result.orderReference}</Typography>
@@ -169,6 +182,7 @@ function PredictionResultView({ result }: { result: RuleBasedPredictionResult })
             </Box>}
         </CardContent>
       </Card>
-    </Box>
+      </Box>
+    </>
   );
 }

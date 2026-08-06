@@ -19,6 +19,9 @@ public interface IErpDataProvider
         string productReference,
         CancellationToken cancellationToken);
 
+    Task<IReadOnlyList<ProductReadDto>> GetProductsAsync(
+        CancellationToken cancellationToken);
+
     Task<IReadOnlyList<BomItemReadDto>> GetProductBomAsync(
         string productReference,
         CancellationToken cancellationToken);

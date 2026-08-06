@@ -8,6 +8,11 @@ namespace MockErp.Api.Controllers;
 [Route("api/products")]
 public sealed class ProductsController(MockErpDataStore dataStore) : ControllerBase
 {
+    [HttpGet]
+    [ProducesResponseType<IReadOnlyList<MockErpProduct>>(StatusCodes.Status200OK)]
+    public ActionResult<IReadOnlyList<MockErpProduct>> GetAll() =>
+        Ok(dataStore.GetProducts());
+
     [HttpGet("{id}")]
     [ProducesResponseType<MockErpProduct>(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]

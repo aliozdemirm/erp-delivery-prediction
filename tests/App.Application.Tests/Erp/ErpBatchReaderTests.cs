@@ -37,6 +37,9 @@ public class ErpBatchReaderTests
             return Task.FromResult(product);
         }
 
+        public Task<IReadOnlyList<ProductReadDto>> GetProductsAsync(CancellationToken cancellationToken)
+            => throw new NotImplementedException();
+
         public Task<IReadOnlyList<BomItemReadDto>> GetProductBomAsync(string productReference, CancellationToken cancellationToken)
         {
             BomItemsToReturn.TryGetValue(productReference, out var bom);

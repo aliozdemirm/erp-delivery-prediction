@@ -16,7 +16,7 @@ public sealed class MockErpDataProviderTests
     public void Provider_ImplementsExactPort()
     {
         Assert.True(typeof(IErpDataProvider).IsAssignableFrom(typeof(MockErpDataProvider)));
-        Assert.Equal(10, typeof(IErpDataProvider).GetMethods().Length);
+        Assert.Equal(11, typeof(IErpDataProvider).GetMethods().Length);
     }
 
     [Fact]
@@ -150,6 +150,27 @@ public sealed class MockErpDataProviderTests
         Assert.Equal("SO-2", summaries[1].OrderReference);
         Assert.Single(handler.Requests);
         Assert.Equal("/api/orders", handler.Requests[0].Uri.AbsolutePath);
+    }
+
+    [Fact]
+    public async Task Products_MapsAllProducts_WithASingleBulkRequest()
+    {
+        var handler = new RecordingHandler(Json(new object[]
+        {
+            new { id = "P1", name = "Widget", unit = "EA" },
+            new { id = "P2", name = "Gadget", unit = "KG" },
+        }));
+        var (provider, _) = Create(handler);
+
+        var products = await provider.GetProductsAsync(default);
+
+        Assert.Equal(2, products.Count);
+        Assert.Equal("P1", products[0].ProductReference);
+        Assert.Null(products[0].PlanningClassification);
+        Assert.Equal("EA", products[0].UnitOfMeasure);
+        Assert.Equal("P2", products[1].ProductReference);
+        Assert.Single(handler.Requests);
+        Assert.Equal("/api/products", handler.Requests[0].Uri.AbsolutePath);
     }
 
     [Fact]

@@ -35,11 +35,23 @@ public sealed class MockErpDataStoreTests
     }
 
     [Fact]
+    public void GetProductsReturnsFullRuntimeSeedCollection()
+    {
+        var store = new MockErpDataStore(SeedPath);
+
+        var products = store.GetProducts();
+
+        Assert.Equal(4, products.Count);
+        Assert.Equal(["P001", "P002", "P003", "P004"], products.Select(product => product.Id));
+    }
+
+    [Fact]
     public void RepeatedReadsAreEquivalentAndUnknownIdsReturnNoData()
     {
         var store = new MockErpDataStore(SeedPath);
 
         Assert.Equal(store.GetOrders(), store.GetOrders());
+        Assert.Equal(store.GetProducts(), store.GetProducts());
         Assert.Equal(store.GetProductBom("P002"), store.GetProductBom("P002"));
         Assert.Null(store.GetOrder("ORD-UNKNOWN"));
         Assert.Null(store.GetProduct("PROD-UNKNOWN"));

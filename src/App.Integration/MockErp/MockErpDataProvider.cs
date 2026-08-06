@@ -36,6 +36,12 @@ internal sealed class MockErpDataProvider : IErpDataProvider
         return order is null ? null : MapOrder(order);
     }
 
+    public async Task<IReadOnlyList<OrderSummaryReadDto>> GetOrderSummariesAsync(CancellationToken cancellationToken)
+    {
+        var orders = await GetCollectionAsync<MockErpOrder>("GetOrders", "api/orders", cancellationToken);
+        return Array.AsReadOnly(orders.Select(MapOrderSummary).ToArray());
+    }
+
     public async Task<IReadOnlyList<OrderItemReadDto>> GetOrderItemsAsync(string orderReference, CancellationToken cancellationToken)
     {
         var order = await GetNullableAsync<MockErpOrder>("GetOrderItems.Order", $"api/orders/{Path(orderReference)}", cancellationToken);
@@ -269,6 +275,9 @@ internal sealed class MockErpDataProvider : IErpDataProvider
         $"{path}?{string.Join("&", values.Select(pair => $"{Uri.EscapeDataString(pair.Key)}={Uri.EscapeDataString(pair.Value)}"))}";
 
     private static OrderReadDto MapOrder(MockErpOrder order) => new(order.Id, ToUtcStartOfDay(order.RequestedDeliveryDate), null, null);
+
+    private static OrderSummaryReadDto MapOrderSummary(MockErpOrder order) =>
+        new(order.Id, order.ProductId, order.Quantity, ToUtcStartOfDay(order.RequestedDeliveryDate));
 
     private static DateTimeOffset ToUtcStartOfDay(DateOnly date) =>
         new(date.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero);

@@ -11,6 +11,7 @@ public sealed class ErpDataProviderContractTests
     [
         "GetOrderAsync",
         "GetOrderItemsAsync",
+        "GetOrderSummariesAsync",
         "GetProductAsync",
         "GetProductBomAsync",
         "GetStockLevelsAsync",
@@ -29,6 +30,7 @@ public sealed class ErpDataProviderContractTests
     [
         typeof(OrderReadDto),
         typeof(OrderItemReadDto),
+        typeof(OrderSummaryReadDto),
         typeof(ProductReadDto),
         typeof(BomItemReadDto),
         typeof(StockLevelReadDto),
@@ -100,6 +102,7 @@ public sealed class ErpDataProviderContractTests
         var collectionMethods = new[]
         {
             "GetOrderItemsAsync",
+            "GetOrderSummariesAsync",
             "GetProductBomAsync",
             "GetStockLevelsAsync",
             "GetOpenPurchaseOrdersAsync",

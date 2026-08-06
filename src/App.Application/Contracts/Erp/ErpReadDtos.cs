@@ -13,6 +13,12 @@ public sealed record OrderItemReadDto(
     decimal OrderedQuantity,
     string UnitOfMeasure);
 
+public sealed record OrderSummaryReadDto(
+    string OrderReference,
+    string ProductReference,
+    decimal Quantity,
+    DateTimeOffset RequestedDeliveryDateTime);
+
 public sealed record ProductReadDto(
     string ProductReference,
     string? PlanningClassification,

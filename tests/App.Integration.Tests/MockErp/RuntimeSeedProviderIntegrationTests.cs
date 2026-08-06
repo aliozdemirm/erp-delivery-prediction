@@ -41,6 +41,11 @@ public sealed class RuntimeSeedProviderIntegrationTests : IClassFixture<WebAppli
         Assert.Equal("P002", product.ProductReference);
         Assert.Equal("Adet", product.UnitOfMeasure);
 
+        var products = await _provider.GetProductsAsync(default);
+        Assert.Equal(4, products.Count);
+        Assert.Equal(["P001", "P002", "P003", "P004"], products.Select(p => p.ProductReference).Order(StringComparer.Ordinal));
+        Assert.All(products, p => Assert.Null(p.PlanningClassification));
+
         var bom = await _provider.GetProductBomAsync("P002", default);
         Assert.Equal(11, bom.Count);
         Assert.Contains(bom, line => line.ComponentProductReference == "MAT-AHSAP-OTURAK");

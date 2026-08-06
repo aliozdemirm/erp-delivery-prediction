@@ -67,6 +67,12 @@ internal sealed class MockErpDataProvider : IErpDataProvider
         return product is null ? null : new ProductReadDto(product.Id, null, product.Unit);
     }
 
+    public async Task<IReadOnlyList<ProductReadDto>> GetProductsAsync(CancellationToken cancellationToken)
+    {
+        var products = await GetCollectionAsync<MockErpProduct>("GetProducts", "api/products", cancellationToken);
+        return Array.AsReadOnly(products.Select(product => new ProductReadDto(product.Id, null, product.Unit)).ToArray());
+    }
+
     public async Task<IReadOnlyList<BomItemReadDto>> GetProductBomAsync(string productReference, CancellationToken cancellationToken)
     {
         var lines = await GetCollectionAsync<MockErpBomLine>("GetProductBom", $"api/products/{Path(productReference)}/bom", cancellationToken);

@@ -13,6 +13,7 @@ public sealed class ErpDataProviderContractTests
         "GetOrderItemsAsync",
         "GetOrderSummariesAsync",
         "GetProductAsync",
+        "GetProductsAsync",
         "GetProductBomAsync",
         "GetStockLevelsAsync",
         "GetOpenPurchaseOrdersAsync",
@@ -103,6 +104,7 @@ public sealed class ErpDataProviderContractTests
         {
             "GetOrderItemsAsync",
             "GetOrderSummariesAsync",
+            "GetProductsAsync",
             "GetProductBomAsync",
             "GetStockLevelsAsync",
             "GetOpenPurchaseOrdersAsync",

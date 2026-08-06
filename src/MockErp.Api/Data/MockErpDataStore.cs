@@ -122,6 +122,8 @@ public sealed class MockErpDataStore
     public MockErpOrder? GetOrder(string id) =>
         _ordersById.GetValueOrDefault(id);
 
+    public IReadOnlyList<MockErpProduct> GetProducts() => _products;
+
     public MockErpProduct? GetProduct(string id) =>
         _productsById.GetValueOrDefault(id);
 

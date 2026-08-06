@@ -85,6 +85,17 @@ public sealed class MockErpControllerTests
         Assert.Equal(!exists, result.Result is NotFoundResult);
     }
 
+    [Fact]
+    public void GetProductsReturnsFullRuntimeSeedCollection()
+    {
+        var result = new ProductsController(_store).GetAll();
+
+        var ok = Assert.IsType<OkObjectResult>(result.Result);
+        var products = Assert.IsAssignableFrom<IReadOnlyList<MockErpProduct>>(ok.Value);
+        Assert.Equal(4, products.Count);
+        Assert.Equal(["P001", "P002", "P003", "P004"], products.Select(product => product.Id));
+    }
+
     [Theory]
     [InlineData("P002", true)]
     [InlineData("PROD-UNKNOWN", false)]

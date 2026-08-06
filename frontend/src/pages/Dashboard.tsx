@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import {
   Alert, AlertTitle, Box, Button, Card, CardContent, Chip, CircularProgress,
   Divider, List, ListItem, TextField, Typography,
@@ -32,9 +33,18 @@ function hasSyntheticDemoData(result: RuleBasedPredictionResult): boolean {
 }
 
 export default function Dashboard() {
+  const location = useLocation();
   const [orderReference, setOrderReference] = useState('');
   const [state, setState] = useState<DashboardState>({ status: 'idle' });
   const isLoading = state.status === 'loading';
+
+  useEffect(() => {
+    const prefillOrderReference = (location.state as { orderReference?: string } | null)?.orderReference;
+    if (prefillOrderReference) {
+      setOrderReference(prefillOrderReference);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleCalculate = () => {
     const trimmedOrderReference = orderReference.trim();

@@ -1,5 +1,6 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import Dashboard from './Dashboard';
 import { calculatePrediction } from '../features/prediction/predictionApi';
@@ -34,6 +35,14 @@ const demoTimelineResult: RuleBasedPredictionResult = {
 
 const DEMO_BANNER_TEXT = 'Sentetik demo veri kullanılıyor. Bu operasyonlar ERP tarafından doğrulanmamıştır.';
 
+function renderDashboard(initialEntries: Array<string | { pathname: string; state?: unknown }> = ['/']) {
+  return render(
+    <MemoryRouter initialEntries={initialEntries}>
+      <Dashboard />
+    </MemoryRouter>,
+  );
+}
+
 async function submit(reference = 'ORD-1001') {
   const user = userEvent.setup();
   await user.type(screen.getByLabelText('Order Reference'), reference);
@@ -46,14 +55,14 @@ beforeEach(() => {
 
 describe('Dashboard', () => {
   it('starts idle with a labelled input and disabled action', () => {
-    render(<Dashboard />);
+    renderDashboard();
     expect(screen.getByLabelText('Order Reference')).toBeVisible();
     expect(screen.getByRole('button', { name: 'Calculate Prediction' })).toBeDisabled();
   });
 
   it('shows loading, disables submission, and clears a previous result', async () => {
     calculateMock.mockResolvedValueOnce(result);
-    render(<Dashboard />);
+    renderDashboard();
     await submit();
     expect(await screen.findByText(/Summary for ORD-1001/)).toBeVisible();
 
@@ -66,7 +75,7 @@ describe('Dashboard', () => {
 
   it('renders all backend-provided success sections', async () => {
     calculateMock.mockResolvedValue(result);
-    render(<Dashboard />);
+    renderDashboard();
     await submit();
     expect(await screen.findByRole('heading', { name: 'Critical Path Operations' })).toBeVisible();
     expect(screen.getAllByText('CUT-10')).toHaveLength(2);
@@ -79,7 +88,7 @@ describe('Dashboard', () => {
   it('shows a validation-specific alert for insufficient data', async () => {
     let rejectRequest: (reason: unknown) => void = () => undefined;
     calculateMock.mockImplementation(() => new Promise((_, reject) => { rejectRequest = reject; }));
-    render(<Dashboard />);
+    renderDashboard();
     await submit();
     rejectRequest(new PredictionApiError('More routing data is required.', 'validation', 400, 'Data.Insufficient'));
     expect(await screen.findByRole('alert')).toHaveTextContent('Validation error');
@@ -93,7 +102,7 @@ describe('Dashboard', () => {
   ])('shows a calculation failure for %s', async (errorCode, detail, heading) => {
     let rejectRequest: (reason: unknown) => void = () => undefined;
     calculateMock.mockImplementation(() => new Promise((_, reject) => { rejectRequest = reject; }));
-    render(<Dashboard />);
+    renderDashboard();
     await submit();
     rejectRequest(new PredictionApiError(detail, 'calculationFailure', 400, errorCode));
     expect(await screen.findByRole('alert')).toHaveTextContent(heading);
@@ -107,7 +116,7 @@ describe('Dashboard', () => {
   ])('handles service and network failures without crashing', async (error) => {
     let rejectRequest: (reason: unknown) => void = () => undefined;
     calculateMock.mockImplementation(() => new Promise((_, reject) => { rejectRequest = reject; }));
-    render(<Dashboard />);
+    renderDashboard();
     await submit();
     rejectRequest(error);
     await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('Calculation failed'));
@@ -115,21 +124,21 @@ describe('Dashboard', () => {
 
   it('shows the synthetic demo data banner when criticalPathOperations contains a DEMO- reference', async () => {
     calculateMock.mockResolvedValueOnce(demoCriticalPathResult);
-    render(<Dashboard />);
+    renderDashboard();
     await submit();
     expect(await screen.findByText(DEMO_BANNER_TEXT)).toBeVisible();
   });
 
   it('shows the synthetic demo data banner when timeline contains a DEMO- operationRef', async () => {
     calculateMock.mockResolvedValueOnce(demoTimelineResult);
-    render(<Dashboard />);
+    renderDashboard();
     await submit();
     expect(await screen.findByText(DEMO_BANNER_TEXT)).toBeVisible();
   });
 
   it('does not show the demo data banner for a normal ERP-backed result', async () => {
     calculateMock.mockResolvedValueOnce(result);
-    render(<Dashboard />);
+    renderDashboard();
     await submit();
     expect(await screen.findByText(/Summary for ORD-1001/)).toBeVisible();
     expect(screen.queryByText(DEMO_BANNER_TEXT)).not.toBeInTheDocument();
@@ -137,7 +146,7 @@ describe('Dashboard', () => {
 
   it('does not show the demo data banner during the loading state', async () => {
     calculateMock.mockImplementationOnce(() => new Promise(() => undefined));
-    render(<Dashboard />);
+    renderDashboard();
     await submit();
     expect(screen.getByRole('status')).toHaveTextContent('Calculating prediction...');
     expect(screen.queryByText(DEMO_BANNER_TEXT)).not.toBeInTheDocument();
@@ -146,7 +155,7 @@ describe('Dashboard', () => {
   it('does not show the demo data banner during the validation error state', async () => {
     let rejectRequest: (reason: unknown) => void = () => undefined;
     calculateMock.mockImplementation(() => new Promise((_, reject) => { rejectRequest = reject; }));
-    render(<Dashboard />);
+    renderDashboard();
     await submit();
     rejectRequest(new PredictionApiError('More routing data is required.', 'validation', 400, 'Data.Insufficient'));
     await screen.findByRole('alert');
@@ -156,7 +165,7 @@ describe('Dashboard', () => {
   it('does not show the demo data banner during the calculation failure state', async () => {
     let rejectRequest: (reason: unknown) => void = () => undefined;
     calculateMock.mockImplementation(() => new Promise((_, reject) => { rejectRequest = reject; }));
-    render(<Dashboard />);
+    renderDashboard();
     await submit();
     rejectRequest(new PredictionApiError('Server unavailable.', 'calculationFailure', 500));
     await screen.findByRole('alert');
@@ -165,9 +174,20 @@ describe('Dashboard', () => {
 
   it('exposes the demo data banner as an accessible alert', async () => {
     calculateMock.mockResolvedValueOnce(demoCriticalPathResult);
-    render(<Dashboard />);
+    renderDashboard();
     await submit();
     const banner = await screen.findByRole('alert');
     expect(banner).toHaveTextContent(DEMO_BANNER_TEXT);
+  });
+
+  it('prefills the order reference from incoming navigation state', () => {
+    renderDashboard([{ pathname: '/', state: { orderReference: 'SO00001' } }]);
+    expect(screen.getByLabelText('Order Reference')).toHaveValue('SO00001');
+    expect(screen.getByRole('button', { name: 'Calculate Prediction' })).toBeEnabled();
+  });
+
+  it('leaves the order reference empty when navigated to directly', () => {
+    renderDashboard();
+    expect(screen.getByLabelText('Order Reference')).toHaveValue('');
   });
 });

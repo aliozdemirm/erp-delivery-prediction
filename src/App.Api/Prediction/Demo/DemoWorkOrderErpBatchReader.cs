@@ -15,22 +15,20 @@ namespace App.Api.Prediction.Demo;
 /// </summary>
 public sealed class DemoWorkOrderErpBatchReader : IErpBatchReader
 {
-    private const string DemoWorkOrderReference = "DEMO-WO-001";
-    private const string DemoRoutingReference = "DEMO-ROUTING-001";
-    private const string DemoWorkCenterReference = "DEMO-WC-001";
-    private const string DemoWorkOrderStatus = "Released";
-
     private readonly IErpBatchReader _inner;
     private readonly DemoWorkOrderOptions _options;
+    private readonly DemoWorkOrderSnapshotEnricher _enricher;
     private readonly ILogger<DemoWorkOrderErpBatchReader> _logger;
 
     public DemoWorkOrderErpBatchReader(
         IErpBatchReader inner,
         DemoWorkOrderOptions options,
+        DemoWorkOrderSnapshotEnricher enricher,
         ILogger<DemoWorkOrderErpBatchReader> logger)
     {
         _inner = inner ?? throw new ArgumentNullException(nameof(inner));
         _options = options ?? throw new ArgumentNullException(nameof(options));
+        _enricher = enricher ?? throw new ArgumentNullException(nameof(enricher));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
@@ -43,39 +41,21 @@ public sealed class DemoWorkOrderErpBatchReader : IErpBatchReader
             return result;
         }
 
-        var snapshot = result.Value;
-        if (snapshot.WorkOrders.Count > 0)
+        var enrichedSnapshot = _enricher.Enrich(result.Value);
+        if (ReferenceEquals(enrichedSnapshot, result.Value))
         {
             return result;
         }
 
-        var productReference = snapshot.OrderItems.FirstOrDefault()?.ProductReference;
-        if (productReference is null)
-        {
-            return result;
-        }
+        var demoWorkOrder = enrichedSnapshot.WorkOrders.Single();
 
         _logger.LogWarning(
             "Demo mode active: injecting synthetic work order {DemoWorkOrderReference} for order {OrderReference} / product {ProductReference}. " +
             "This routing/operation data is NOT ERP-verified and must not be treated as real production data.",
-            DemoWorkOrderReference,
+            demoWorkOrder.WorkOrderReference,
             orderReference,
-            productReference);
+            demoWorkOrder.ProductReference);
 
-        var demoWorkOrder = new WorkOrderReadDto(
-            DemoWorkOrderReference,
-            orderReference,
-            productReference,
-            DemoWorkOrderStatus,
-            new RoutingReadDto(
-                DemoRoutingReference,
-                new List<OperationReadDto>
-                {
-                    new("DEMO-OP-10", 10, DemoWorkCenterReference, 60, Array.Empty<string>()),
-                    new("DEMO-OP-20", 20, DemoWorkCenterReference, 45, new[] { "DEMO-OP-10" }),
-                }));
-
-        var enrichedSnapshot = snapshot with { WorkOrders = new List<WorkOrderReadDto> { demoWorkOrder } };
         return Result<ErpBatchSnapshot>.Success(enrichedSnapshot);
     }
 }

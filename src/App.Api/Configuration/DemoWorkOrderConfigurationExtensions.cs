@@ -2,6 +2,7 @@ using App.Api.Prediction.Demo;
 using App.Application.Abstractions.Erp;
 using App.Application.Erp;
 using App.Application.Prediction.Demo;
+using App.Application.Prediction;
 using Microsoft.Extensions.Options;
 
 namespace App.Api.Configuration;
@@ -31,10 +32,16 @@ public static class DemoWorkOrderConfigurationExtensions
         }
 
         services.AddScoped<ErpBatchReader>();
+        services.AddSingleton<DemoWorkOrderSnapshotEnricher>();
         services.AddScoped<IErpBatchReader>(sp => new DemoWorkOrderErpBatchReader(
             sp.GetRequiredService<ErpBatchReader>(),
             sp.GetRequiredService<DemoWorkOrderOptions>(),
+            sp.GetRequiredService<DemoWorkOrderSnapshotEnricher>(),
             sp.GetRequiredService<ILogger<DemoWorkOrderErpBatchReader>>()));
+        services.AddTransient<IPredictionContextBuilder>(sp => new DemoWorkOrderPredictionContextBuilder(
+            sp.GetRequiredService<PredictionContextBuilder>(),
+            sp.GetRequiredService<DemoWorkOrderSnapshotEnricher>(),
+            sp.GetRequiredService<ILogger<DemoWorkOrderPredictionContextBuilder>>()));
 
         return services;
     }

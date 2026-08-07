@@ -40,8 +40,8 @@ builder.Services.AddShippingLookup();
 builder.Services.AddSystemClock();
 builder.Services.AddMockErpDataProvider(builder.Configuration);
 builder.Services.AddErpBatchReader();
-builder.Services.AddDemoWorkOrderSupport(builder.Configuration);
 builder.Services.AddPredictionServices();
+builder.Services.AddDemoWorkOrderSupport(builder.Configuration);
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer();

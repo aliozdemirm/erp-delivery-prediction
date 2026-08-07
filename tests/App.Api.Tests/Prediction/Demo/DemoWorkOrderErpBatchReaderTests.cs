@@ -41,7 +41,7 @@ public class DemoWorkOrderErpBatchReaderTests
 
         var options = new DemoWorkOrderOptions { EnableSyntheticWorkOrder = false };
         var logger = new TestLogger<DemoWorkOrderErpBatchReader>();
-        var sut = new DemoWorkOrderErpBatchReader(innerMock.Object, options, logger);
+        var sut = new DemoWorkOrderErpBatchReader(innerMock.Object, options, new DemoWorkOrderSnapshotEnricher(), logger);
 
         var result = await sut.ReadAsync("SO00001");
 
@@ -61,7 +61,7 @@ public class DemoWorkOrderErpBatchReaderTests
 
         var options = new DemoWorkOrderOptions { EnableSyntheticWorkOrder = true };
         var logger = new TestLogger<DemoWorkOrderErpBatchReader>();
-        var sut = new DemoWorkOrderErpBatchReader(innerMock.Object, options, logger);
+        var sut = new DemoWorkOrderErpBatchReader(innerMock.Object, options, new DemoWorkOrderSnapshotEnricher(), logger);
 
         var result = await sut.ReadAsync("SO00001");
 
@@ -99,7 +99,7 @@ public class DemoWorkOrderErpBatchReaderTests
 
         var options = new DemoWorkOrderOptions { EnableSyntheticWorkOrder = true };
         var logger = new TestLogger<DemoWorkOrderErpBatchReader>();
-        var sut = new DemoWorkOrderErpBatchReader(innerMock.Object, options, logger);
+        var sut = new DemoWorkOrderErpBatchReader(innerMock.Object, options, new DemoWorkOrderSnapshotEnricher(), logger);
 
         var result = await sut.ReadAsync("SO00001");
 
@@ -120,7 +120,7 @@ public class DemoWorkOrderErpBatchReaderTests
 
         var options = new DemoWorkOrderOptions { EnableSyntheticWorkOrder = true };
         var logger = new TestLogger<DemoWorkOrderErpBatchReader>();
-        var sut = new DemoWorkOrderErpBatchReader(innerMock.Object, options, logger);
+        var sut = new DemoWorkOrderErpBatchReader(innerMock.Object, options, new DemoWorkOrderSnapshotEnricher(), logger);
 
         var result = await sut.ReadAsync("SO-MISSING");
 

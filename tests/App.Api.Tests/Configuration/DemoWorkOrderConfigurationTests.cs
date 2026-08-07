@@ -3,6 +3,7 @@ using App.Api.Prediction.Demo;
 using App.Application.Abstractions.Erp;
 using App.Application.Erp;
 using App.Domain.Abstractions;
+using App.Application.Prediction;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -30,6 +31,7 @@ public class DemoWorkOrderConfigurationTests
         services.AddSingleton(Mock.Of<IErpDataProvider>());
         services.AddSingleton(Mock.Of<IClock>());
         services.AddErpBatchReader();
+        services.AddPredictionServices();
         services.AddDemoWorkOrderSupport(configuration);
 
         return services.BuildServiceProvider();
@@ -63,5 +65,20 @@ public class DemoWorkOrderConfigurationTests
         var reader = provider.GetRequiredService<IErpBatchReader>();
 
         Assert.IsType<DemoWorkOrderErpBatchReader>(reader);
+    }
+
+    [Theory]
+    [InlineData(null, typeof(PredictionContextBuilder))]
+    [InlineData("false", typeof(PredictionContextBuilder))]
+    [InlineData("true", typeof(DemoWorkOrderPredictionContextBuilder))]
+    public void ExistingFlag_ControlsSharedContextEnrichmentRegistration(
+        string? flagValue,
+        Type expectedType)
+    {
+        using var provider = BuildProvider(flagValue);
+
+        var builder = provider.GetRequiredService<IPredictionContextBuilder>();
+
+        Assert.IsType(expectedType, builder);
     }
 }

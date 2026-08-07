@@ -22,7 +22,8 @@ public sealed record OrderSummaryReadDto(
 public sealed record ProductReadDto(
     string ProductReference,
     string? PlanningClassification,
-    string UnitOfMeasure);
+    string UnitOfMeasure,
+    string? Name = null);
 
 public sealed record BomItemReadDto(
     string ParentProductReference,

@@ -1,193 +1,138 @@
-import { render, screen, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
-import { MemoryRouter } from 'react-router-dom';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { ThemeProvider } from '@mui/material';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import Dashboard from './Dashboard';
-import { calculatePrediction } from '../features/prediction/predictionApi';
-import { PredictionApiError } from '../features/prediction/predictionErrors';
-import type { RuleBasedPredictionResult } from '../features/prediction/predictionContracts';
+import { theme } from '../theme';
 
-vi.mock('../features/prediction/predictionApi', () => ({ calculatePrediction: vi.fn() }));
-const calculateMock = vi.mocked(calculatePrediction);
-
-const result: RuleBasedPredictionResult = {
-  orderReference: 'ORD-1001',
-  estimatedStart: '2026-08-05T08:00:00Z',
-  estimatedEnd: '2026-08-06T08:00:00Z',
-  estimatedDelivery: '2026-08-07T08:00:00Z',
-  criticalPathOperations: ['CUT-10'],
-  appliedFallbackReasons: ['Default shipping duration'],
-  shortages: [{ productReference: 'STEEL-1', shortageQuantity: 4 }],
-  timeline: [{ operationRef: 'CUT-10', estimatedStart: '2026-08-05T08:00:00Z', estimatedEnd: '2026-08-06T08:00:00Z', isCritical: true }],
-};
-
-const demoCriticalPathResult: RuleBasedPredictionResult = {
-  ...result,
-  criticalPathOperations: ['DEMO-OP-10'],
-  timeline: [{ operationRef: 'CUT-10', estimatedStart: '2026-08-05T08:00:00Z', estimatedEnd: '2026-08-06T08:00:00Z', isCritical: true }],
-};
-
-const demoTimelineResult: RuleBasedPredictionResult = {
-  ...result,
-  criticalPathOperations: ['CUT-10'],
-  timeline: [{ operationRef: 'DEMO-OP-20', estimatedStart: '2026-08-05T08:00:00Z', estimatedEnd: '2026-08-06T08:00:00Z', isCritical: true }],
-};
-
-const DEMO_BANNER_TEXT = 'Sentetik demo veri kullanılıyor. Bu operasyonlar ERP tarafından doğrulanmamıştır.';
-
-function renderDashboard(initialEntries: Array<string | { pathname: string; state?: unknown }> = ['/']) {
+function renderDashboard() {
   return render(
-    <MemoryRouter initialEntries={initialEntries}>
+    <ThemeProvider theme={theme}>
       <Dashboard />
-    </MemoryRouter>,
+    </ThemeProvider>,
   );
 }
 
-async function submit(reference = 'ORD-1001') {
-  const user = userEvent.setup();
-  await user.type(screen.getByLabelText('Order Reference'), reference);
-  await user.click(screen.getByRole('button', { name: 'Calculate Prediction' }));
-}
-
-beforeEach(() => {
-  calculateMock.mockReset();
+const navigateMock = vi.fn();
+vi.mock('react-router-dom', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('react-router-dom')>();
+  return { ...actual, useNavigate: () => navigateMock };
 });
 
-describe('Dashboard', () => {
-  it('starts idle with a labelled input and disabled action', () => {
-    renderDashboard();
-    expect(screen.getByLabelText('Order Reference')).toBeVisible();
-    expect(screen.getByRole('button', { name: 'Calculate Prediction' })).toBeDisabled();
+const jsonResponse = (body: unknown, status = 200) =>
+  Promise.resolve(new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } }));
+
+const fourProducts = [
+  { productReference: 'P001', unitOfMeasure: 'Adet' },
+  { productReference: 'P002', unitOfMeasure: 'Adet' },
+  { productReference: 'P003', unitOfMeasure: 'Adet' },
+  { productReference: 'P004', unitOfMeasure: 'Adet' },
+];
+
+describe('Dashboard (product wizard)', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    navigateMock.mockReset();
   });
 
-  it('shows loading, disables submission, and clears a previous result', async () => {
-    calculateMock.mockResolvedValueOnce(result);
+  it('shows a loading state, then renders a card per real product', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation(() => jsonResponse(fourProducts));
     renderDashboard();
-    await submit();
-    expect(await screen.findByText(/Summary for ORD-1001/)).toBeVisible();
+    expect(screen.getByText('Ürünler yükleniyor...')).toBeVisible();
 
-    calculateMock.mockImplementationOnce(() => new Promise(() => undefined));
-    await userEvent.click(screen.getByRole('button', { name: 'Calculate Prediction' }));
-    expect(screen.getByRole('status')).toHaveTextContent('Calculating prediction...');
-    expect(screen.getByRole('button', { name: 'Calculate Prediction' })).toBeDisabled();
-    expect(screen.queryByText(/Summary for ORD-1001/)).not.toBeInTheDocument();
+    expect(await screen.findByText('P001')).toBeVisible();
+    expect(screen.getByText('P002')).toBeVisible();
+    expect(screen.getByText('P003')).toBeVisible();
+    expect(screen.getByText('P004')).toBeVisible();
   });
 
-  it('renders all backend-provided success sections', async () => {
-    calculateMock.mockResolvedValue(result);
+  it('shows the ERP-provided product name on the card, falling back to the reference', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation(() => jsonResponse([
+      { productReference: 'P001', name: 'Masa', unitOfMeasure: 'Adet' },
+      { productReference: 'P002', unitOfMeasure: 'Adet' },
+    ]));
     renderDashboard();
-    await submit();
-    expect(await screen.findByRole('heading', { name: 'Critical Path Operations' })).toBeVisible();
-    expect(screen.getAllByText('CUT-10')).toHaveLength(2);
-    expect(screen.getByText('Default shipping duration')).toBeVisible();
-    expect(screen.getByText('STEEL-1: 4')).toBeVisible();
-    expect(screen.getByText('Critical Path')).toBeVisible();
-    expect(screen.getByText(/Estimated Delivery/)).toBeVisible();
+
+    expect(await screen.findByText('Masa')).toBeVisible();
+    expect(screen.getByText('P002')).toBeVisible();
   });
 
-  it('shows a validation-specific alert for insufficient data', async () => {
-    let rejectRequest: (reason: unknown) => void = () => undefined;
-    calculateMock.mockImplementation(() => new Promise((_, reject) => { rejectRequest = reject; }));
+  it('shows empty and error product states', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(() => jsonResponse([]));
+    const { unmount } = renderDashboard();
+    expect(await screen.findByText('Görüntülenecek ürün bulunamadı.')).toBeVisible();
+    unmount();
+
+    fetchMock.mockImplementation(() => jsonResponse({}, 500));
     renderDashboard();
-    await submit();
-    rejectRequest(new PredictionApiError('More routing data is required.', 'validation', 400, 'Data.Insufficient'));
-    expect(await screen.findByRole('alert')).toHaveTextContent('Validation error');
-    expect(screen.getByRole('alert')).toHaveTextContent('More routing data is required.');
-    expect(screen.queryByText(/Calculation failed/)).not.toBeInTheDocument();
+    expect(await screen.findByText(/Products request failed/)).toBeVisible();
   });
 
-  it.each([
-    ['CPM.CycleDetected', 'A dependency cycle was detected.', 'cycle detected'],
-    ['CPM.MissingPredecessorReference', 'Operation predecessor X was not found.', 'missing predecessor reference'],
-  ])('shows a calculation failure for %s', async (errorCode, detail, heading) => {
-    let rejectRequest: (reason: unknown) => void = () => undefined;
-    calculateMock.mockImplementation(() => new Promise((_, reject) => { rejectRequest = reject; }));
+  it('reveals the quantity/location step only after a product card is selected', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation(() => jsonResponse(fourProducts));
     renderDashboard();
-    await submit();
-    rejectRequest(new PredictionApiError(detail, 'calculationFailure', 400, errorCode));
-    expect(await screen.findByRole('alert')).toHaveTextContent(heading);
-    expect(screen.getByRole('alert')).toHaveTextContent(detail);
-    expect(screen.queryByText('Validation error')).not.toBeInTheDocument();
+    await screen.findByText('P001');
+    expect(screen.queryByLabelText('Adet')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('P001'));
+    expect(await screen.findByLabelText('Adet')).toBeVisible();
+    expect(screen.getByText('Ürün: P001')).toBeVisible();
   });
 
-  it.each([
-    new PredictionApiError('Server unavailable.', 'calculationFailure', 500),
-    new TypeError('Failed to fetch'),
-  ])('handles service and network failures without crashing', async (error) => {
-    let rejectRequest: (reason: unknown) => void = () => undefined;
-    calculateMock.mockImplementation(() => new Promise((_, reject) => { rejectRequest = reject; }));
+  it('shows a stock status chip on each card when stock data is available', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input: RequestInfo | URL) => {
+      const url = typeof input === 'string' ? input : input.toString();
+      if (url.includes('/api/products/stock')) {
+        return jsonResponse([
+          { productReference: 'P001', unitOfMeasure: 'Adet', availableQuantity: 309 },
+          { productReference: 'P002', unitOfMeasure: 'Adet', availableQuantity: 0 },
+        ]);
+      }
+      return jsonResponse(fourProducts);
+    });
     renderDashboard();
-    await submit();
-    rejectRequest(error);
-    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('Calculation failed'));
+    await screen.findByText('P001');
+
+    expect(await screen.findByText('Yeterli')).toBeVisible();
+    expect(screen.getByText('309 adet')).toBeVisible();
+    expect(screen.getByText('Tükendi')).toBeVisible();
+    expect(screen.getByText('0 adet')).toBeVisible();
   });
 
-  it('shows the synthetic demo data banner when criticalPathOperations contains a DEMO- reference', async () => {
-    calculateMock.mockResolvedValueOnce(demoCriticalPathResult);
+  it('renders product cards without a stock gauge when the stock request fails', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input: RequestInfo | URL) => {
+      const url = typeof input === 'string' ? input : input.toString();
+      if (url.includes('/api/products/stock')) return jsonResponse({}, 500);
+      return jsonResponse(fourProducts);
+    });
     renderDashboard();
-    await submit();
-    expect(await screen.findByText(DEMO_BANNER_TEXT)).toBeVisible();
+
+    expect(await screen.findByText('P001')).toBeVisible();
+    expect(screen.queryByText(/adet$/)).not.toBeInTheDocument();
   });
 
-  it('shows the synthetic demo data banner when timeline contains a DEMO- operationRef', async () => {
-    calculateMock.mockResolvedValueOnce(demoTimelineResult);
+  it('validates quantity and location before navigating to the result screen', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation(() => jsonResponse(fourProducts));
     renderDashboard();
-    await submit();
-    expect(await screen.findByText(DEMO_BANNER_TEXT)).toBeVisible();
+    fireEvent.click(await screen.findByText('P001'));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Teslimat Tahminini Hesapla' }));
+
+    expect(await screen.findByText(/sıfırdan büyük bir adet girin/)).toBeVisible();
+    expect(navigateMock).not.toHaveBeenCalled();
   });
 
-  it('does not show the demo data banner for a normal ERP-backed result', async () => {
-    calculateMock.mockResolvedValueOnce(result);
+  it('navigates to /predictions with the simulate payload on a valid submission', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation(() => jsonResponse(fourProducts));
     renderDashboard();
-    await submit();
-    expect(await screen.findByText(/Summary for ORD-1001/)).toBeVisible();
-    expect(screen.queryByText(DEMO_BANNER_TEXT)).not.toBeInTheDocument();
-  });
+    fireEvent.click(await screen.findByText('P002'));
 
-  it('does not show the demo data banner during the loading state', async () => {
-    calculateMock.mockImplementationOnce(() => new Promise(() => undefined));
-    renderDashboard();
-    await submit();
-    expect(screen.getByRole('status')).toHaveTextContent('Calculating prediction...');
-    expect(screen.queryByText(DEMO_BANNER_TEXT)).not.toBeInTheDocument();
-  });
+    fireEvent.change(screen.getByLabelText('Adet'), { target: { value: '10' } });
+    fireEvent.mouseDown(screen.getByLabelText('İl'));
+    fireEvent.click(screen.getByText('İstanbul'));
+    fireEvent.click(screen.getByRole('button', { name: 'Teslimat Tahminini Hesapla' }));
 
-  it('does not show the demo data banner during the validation error state', async () => {
-    let rejectRequest: (reason: unknown) => void = () => undefined;
-    calculateMock.mockImplementation(() => new Promise((_, reject) => { rejectRequest = reject; }));
-    renderDashboard();
-    await submit();
-    rejectRequest(new PredictionApiError('More routing data is required.', 'validation', 400, 'Data.Insufficient'));
-    await screen.findByRole('alert');
-    expect(screen.queryByText(DEMO_BANNER_TEXT)).not.toBeInTheDocument();
-  });
-
-  it('does not show the demo data banner during the calculation failure state', async () => {
-    let rejectRequest: (reason: unknown) => void = () => undefined;
-    calculateMock.mockImplementation(() => new Promise((_, reject) => { rejectRequest = reject; }));
-    renderDashboard();
-    await submit();
-    rejectRequest(new PredictionApiError('Server unavailable.', 'calculationFailure', 500));
-    await screen.findByRole('alert');
-    expect(screen.queryByText(DEMO_BANNER_TEXT)).not.toBeInTheDocument();
-  });
-
-  it('exposes the demo data banner as an accessible alert', async () => {
-    calculateMock.mockResolvedValueOnce(demoCriticalPathResult);
-    renderDashboard();
-    await submit();
-    const banner = await screen.findByRole('alert');
-    expect(banner).toHaveTextContent(DEMO_BANNER_TEXT);
-  });
-
-  it('prefills the order reference from incoming navigation state', () => {
-    renderDashboard([{ pathname: '/', state: { orderReference: 'SO00001' } }]);
-    expect(screen.getByLabelText('Order Reference')).toHaveValue('SO00001');
-    expect(screen.getByRole('button', { name: 'Calculate Prediction' })).toBeEnabled();
-  });
-
-  it('leaves the order reference empty when navigated to directly', () => {
-    renderDashboard();
-    expect(screen.getByLabelText('Order Reference')).toHaveValue('');
+    expect(navigateMock).toHaveBeenCalledWith('/predictions', {
+      state: { simulate: { productReference: 'P002', quantity: 10, locationReference: 'istanbul' } },
+    });
   });
 });

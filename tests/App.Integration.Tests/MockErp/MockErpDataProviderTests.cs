@@ -168,7 +168,9 @@ public sealed class MockErpDataProviderTests
         Assert.Equal("P1", products[0].ProductReference);
         Assert.Null(products[0].PlanningClassification);
         Assert.Equal("EA", products[0].UnitOfMeasure);
+        Assert.Equal("Widget", products[0].Name);
         Assert.Equal("P2", products[1].ProductReference);
+        Assert.Equal("Gadget", products[1].Name);
         Assert.Single(handler.Requests);
         Assert.Equal("/api/products", handler.Requests[0].Uri.AbsolutePath);
     }
@@ -188,7 +190,9 @@ public sealed class MockErpDataProviderTests
             Json(new { originReference = "TR IST", destinationReference = "DE/BER", shippingProfileReference = "AIR&FAST", shippingDurationMinutes = 1440L }));
         var (provider, _) = Create(handler);
 
-        Assert.Equal("KG", (await provider.GetProductAsync("P/1", default))!.UnitOfMeasure);
+        var product = await provider.GetProductAsync("P/1", default);
+        Assert.Equal("KG", product!.UnitOfMeasure);
+        Assert.Equal("Product", product.Name);
         Assert.Equal(1.25m, Assert.Single(await provider.GetProductBomAsync("P/1", default)).RequiredQuantityPerParentUnit);
         Assert.Equal(8.25m, Assert.Single(await provider.GetStockLevelsAsync(["P/1", "P 2"], default)).AvailableQuantity);
         Assert.Equal(90, Assert.Single(await provider.GetOpenPurchaseOrdersAsync(["P/1"], default)).SupplierLeadTimeMinutes);

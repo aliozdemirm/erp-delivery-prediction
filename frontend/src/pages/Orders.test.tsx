@@ -1,10 +1,12 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
+import { ThemeProvider } from '@mui/material';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import Orders from './Orders';
 import { fetchOrders, OrdersApiError } from '../features/orders/ordersApi';
 import type { OrderSummary } from '../features/orders/ordersContracts';
+import { theme } from '../theme';
 
 vi.mock('../features/orders/ordersApi', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../features/orders/ordersApi')>();
@@ -25,9 +27,11 @@ const orders: OrderSummary[] = [
 
 function renderOrders() {
   return render(
-    <MemoryRouter>
-      <Orders />
-    </MemoryRouter>,
+    <ThemeProvider theme={theme}>
+      <MemoryRouter>
+        <Orders />
+      </MemoryRouter>
+    </ThemeProvider>,
   );
 }
 
@@ -40,17 +44,17 @@ describe('Orders', () => {
   it('shows a loading state while orders are being fetched', () => {
     fetchOrdersMock.mockImplementation(() => new Promise(() => undefined));
     renderOrders();
-    expect(screen.getByRole('status')).toHaveTextContent('Loading orders...');
+    expect(screen.getByRole('status')).toHaveTextContent('Siparişler yükleniyor...');
   });
 
   it('renders real orders from GET /Orders and never the old dummy rows', async () => {
     fetchOrdersMock.mockResolvedValueOnce(orders);
     renderOrders();
 
-    expect(await screen.findByText('Order: SO00001')).toBeVisible();
-    expect(screen.getByText('Order: SO00002')).toBeVisible();
-    expect(screen.getByText('Product: P002')).toBeVisible();
-    expect(screen.getByText('Quantity: 16')).toBeVisible();
+    expect(await screen.findByText('SO00001')).toBeVisible();
+    expect(screen.getByText('SO00002')).toBeVisible();
+    expect(screen.getByText('P002')).toBeVisible();
+    expect(screen.getByText('16')).toBeVisible();
 
     expect(screen.queryByText('ORD-001')).not.toBeInTheDocument();
     expect(screen.queryByText('Widget A')).not.toBeInTheDocument();
@@ -62,9 +66,8 @@ describe('Orders', () => {
     fetchOrdersMock.mockResolvedValueOnce(orders);
     renderOrders();
 
-    await screen.findByText('Order: SO00001');
+    await screen.findByText('SO00001');
     expect(screen.queryByText('2026-07-02T00:00:00+00:00')).not.toBeInTheDocument();
-    expect(screen.getAllByText(/Requested delivery: /)).toHaveLength(2);
   });
 
   it('shows a safe fallback for an invalid delivery date instead of the raw value', async () => {
@@ -73,7 +76,7 @@ describe('Orders', () => {
     ]);
     renderOrders();
 
-    expect(await screen.findByText(/Requested delivery: No delivery date available/)).toBeVisible();
+    expect(await screen.findByText('Teslim tarihi mevcut değil')).toBeVisible();
     expect(screen.queryByText('not-a-date')).not.toBeInTheDocument();
   });
 
@@ -81,7 +84,7 @@ describe('Orders', () => {
     fetchOrdersMock.mockResolvedValueOnce([]);
     renderOrders();
 
-    expect(await screen.findByText('No orders were found.')).toBeVisible();
+    expect(await screen.findByText('Sipariş bulunamadı.')).toBeVisible();
   });
 
   it('shows an error state when GET /Orders fails', async () => {
@@ -91,42 +94,66 @@ describe('Orders', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Orders request failed (500).');
   });
 
-  it('lets the user select an order and shows the selection', async () => {
+  it('lets the user select an order (clicking outside the reference link) and shows the selection', async () => {
     fetchOrdersMock.mockResolvedValueOnce(orders);
     renderOrders();
     const user = userEvent.setup();
 
-    await user.click(await screen.findByText('Order: SO00001'));
+    await user.click(await screen.findByText('P002'));
 
-    expect(screen.getByText('Selected order: SO00001')).toBeVisible();
-    expect(screen.getByRole('button', { name: 'Calculate Prediction' })).toBeEnabled();
+    expect(screen.getByText('Seçili sipariş: SO00001')).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Teslimat Tahminini Hesapla' })).toBeEnabled();
+  });
+
+  it('renders the order reference as a link to its detail page, without also selecting the row', async () => {
+    fetchOrdersMock.mockResolvedValueOnce(orders);
+    renderOrders();
+    const user = userEvent.setup();
+
+    const link = await screen.findByRole('link', { name: 'SO00001' });
+    expect(link).toHaveAttribute('href', '/orders/SO00001');
+
+    await user.click(link);
+    expect(screen.queryByText('Seçili sipariş: SO00001')).not.toBeInTheDocument();
   });
 
   it('disables Calculate Prediction until an order is selected', async () => {
     fetchOrdersMock.mockResolvedValueOnce(orders);
     renderOrders();
 
-    await screen.findByText('Order: SO00001');
-    expect(screen.getByRole('button', { name: 'Calculate Prediction' })).toBeDisabled();
+    await screen.findByText('SO00001');
+    expect(screen.getByRole('button', { name: 'Teslimat Tahminini Hesapla' })).toBeDisabled();
   });
 
-  it('navigates to the dashboard with only the selected orderReference', async () => {
+  it('navigates to the prediction result screen with only the selected orderReference', async () => {
     fetchOrdersMock.mockResolvedValueOnce(orders);
     renderOrders();
     const user = userEvent.setup();
 
-    await user.click(await screen.findByText('Order: SO00002'));
-    await user.click(screen.getByRole('button', { name: 'Calculate Prediction' }));
+    await user.click(await screen.findByText('P004'));
+    await user.click(screen.getByRole('button', { name: 'Teslimat Tahminini Hesapla' }));
 
-    expect(navigateMock).toHaveBeenCalledWith('/', { state: { orderReference: 'SO00002' } });
+    expect(navigateMock).toHaveBeenCalledWith('/predictions', { state: { orderReference: 'SO00002' } });
     expect(navigateMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('filters rows by the search box', async () => {
+    fetchOrdersMock.mockResolvedValueOnce(orders);
+    renderOrders();
+    await screen.findByText('SO00001');
+    const user = userEvent.setup();
+
+    await user.type(screen.getByPlaceholderText('Sipariş referansı... ara'), 'SO00002');
+
+    expect(screen.getByText('SO00002')).toBeVisible();
+    expect(screen.queryByText('SO00001')).not.toBeInTheDocument();
   });
 
   it('does not render any product image, price, status or customer fields', async () => {
     fetchOrdersMock.mockResolvedValueOnce(orders);
     renderOrders();
 
-    await screen.findByText('Order: SO00001');
+    await screen.findByText('SO00001');
     expect(screen.queryByRole('img')).not.toBeInTheDocument();
     expect(screen.queryByText(/price/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/status/i)).not.toBeInTheDocument();

@@ -1,5 +1,7 @@
 export interface ProductListItem {
   productReference: string;
+  name?: string;
+  unitOfMeasure?: string;
 }
 
 export async function getProducts(): Promise<ProductListItem[]> {
@@ -9,5 +11,12 @@ export async function getProducts(): Promise<ProductListItem[]> {
   if (!Array.isArray(body) || !body.every((item) => typeof item === 'object' && item !== null && typeof (item as Record<string, unknown>).productReference === 'string')) {
     throw new Error('The products service returned an unexpected response.');
   }
-  return body.map((item) => ({ productReference: (item as Record<string, string>).productReference }));
+  return body.map((item) => {
+    const record = item as Record<string, unknown>;
+    return {
+      productReference: record.productReference as string,
+      name: typeof record.name === 'string' ? record.name : undefined,
+      unitOfMeasure: typeof record.unitOfMeasure === 'string' ? record.unitOfMeasure : undefined,
+    };
+  });
 }

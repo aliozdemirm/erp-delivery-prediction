@@ -34,6 +34,8 @@ builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(connect
 builder.Services.AddScoped<IIntegrationLogWriter, IntegrationLogWriter>();
 
 builder.Services.AddInfrastructureSecurity(builder.Configuration);
+builder.Services.Configure<WhatIfShippingOptions>(
+    builder.Configuration.GetSection(WhatIfShippingOptions.SectionName));
 builder.Services.AddShippingLookup();
 builder.Services.AddSystemClock();
 builder.Services.AddMockErpDataProvider(builder.Configuration);

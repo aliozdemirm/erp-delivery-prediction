@@ -2,6 +2,12 @@ export interface CalculatePredictionRequest {
   orderReference: string;
 }
 
+export interface WhatIfPredictionRequest {
+  productReference: string;
+  quantity: number;
+  locationReference: string;
+}
+
 export interface MaterialShortage {
   productReference: string;
   shortageQuantity: number;

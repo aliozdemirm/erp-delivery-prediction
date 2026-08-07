@@ -1,5 +1,6 @@
 using App.Application.Abstractions.Erp;
 using App.Application.Contracts.Configuration;
+using App.Application.Abstractions.Shipping;
 using App.Application.Prediction;
 using App.Domain.Abstractions;
 using Microsoft.Extensions.DependencyInjection;
@@ -16,6 +17,8 @@ public sealed class PredictionServiceRegistrationTests
         services.AddSingleton(Mock.Of<IErpDataProvider>());
         services.AddSingleton(Mock.Of<IErpBatchReader>());
         services.AddSingleton(Mock.Of<IClock>());
+        services.AddSingleton(Mock.Of<IWhatIfShippingReferenceResolver>());
+        services.AddSingleton(Mock.Of<IShippingRouteLookupService>());
         services.AddSingleton(new MvpAssumptionsOptions());
         services.AddPredictionServices();
 

@@ -8,6 +8,9 @@ obj/
 .idea/
 *.swp
 
+## macOS
+**/.DS_Store
+
 ## Secrets — never commit the real env file
 .env
 

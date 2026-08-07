@@ -1,4 +1,5 @@
 using App.Application.Common;
+using App.Application.Abstractions.Shipping;
 using App.Application.Contracts.Prediction;
 using App.Domain.Prediction;
 
@@ -15,17 +16,23 @@ public sealed class WhatIfPredictionCalculationService : IWhatIfPredictionCalcul
     private readonly RuleBasedPredictionEngine _predictionEngine;
     private readonly ICriticalPathCalculator _criticalPathCalculator;
     private readonly PredictionResultMapper _resultMapper;
+    private readonly IWhatIfShippingReferenceResolver _shippingReferenceResolver;
+    private readonly IShippingRouteLookupService _shippingRouteLookupService;
 
     public WhatIfPredictionCalculationService(
         WhatIfPredictionContextBuilder contextBuilder,
         RuleBasedPredictionEngine predictionEngine,
         ICriticalPathCalculator criticalPathCalculator,
-        PredictionResultMapper resultMapper)
+        PredictionResultMapper resultMapper,
+        IWhatIfShippingReferenceResolver shippingReferenceResolver,
+        IShippingRouteLookupService shippingRouteLookupService)
     {
         _contextBuilder = contextBuilder ?? throw new ArgumentNullException(nameof(contextBuilder));
         _predictionEngine = predictionEngine ?? throw new ArgumentNullException(nameof(predictionEngine));
         _criticalPathCalculator = criticalPathCalculator ?? throw new ArgumentNullException(nameof(criticalPathCalculator));
         _resultMapper = resultMapper ?? throw new ArgumentNullException(nameof(resultMapper));
+        _shippingReferenceResolver = shippingReferenceResolver ?? throw new ArgumentNullException(nameof(shippingReferenceResolver));
+        _shippingRouteLookupService = shippingRouteLookupService ?? throw new ArgumentNullException(nameof(shippingRouteLookupService));
     }
 
     public async Task<Result<RuleBasedPredictionResult>> CalculateAsync(
@@ -51,6 +58,30 @@ public sealed class WhatIfPredictionCalculationService : IWhatIfPredictionCalcul
         }
 
         var criticalPathOutcome = _criticalPathCalculator.Calculate(engineResult.Context);
-        return _resultMapper.Map(context.OrderInput.OrderReference, engineResult, criticalPathOutcome);
+        if (criticalPathOutcome.Status != CriticalPathStatus.Success)
+        {
+            return _resultMapper.Map(context.OrderInput.OrderReference, engineResult, criticalPathOutcome);
+        }
+
+        long? shippingDurationMinutes = null;
+        var references = _shippingReferenceResolver.Resolve(request.LocationReference);
+        if (references is not null)
+        {
+            var route = await _shippingRouteLookupService.GetRouteAsync(
+                references.OriginReference,
+                references.DestinationReference,
+                references.ShippingProfileReference,
+                cancellationToken);
+            if (route is ShippingRouteLookupResult.Found found)
+            {
+                shippingDurationMinutes = found.ShippingDurationMinutes;
+            }
+        }
+
+        return _resultMapper.Map(
+            context.OrderInput.OrderReference,
+            engineResult,
+            criticalPathOutcome,
+            shippingDurationMinutes);
     }
 }

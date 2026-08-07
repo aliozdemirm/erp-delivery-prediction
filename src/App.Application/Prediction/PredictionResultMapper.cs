@@ -26,6 +26,13 @@ public sealed class PredictionResultMapper
         string orderReference,
         EngineResult engineResult,
         CriticalPathOutcome criticalPathOutcome)
+        => Map(orderReference, engineResult, criticalPathOutcome, null);
+
+    public Result<RuleBasedPredictionResult> Map(
+        string orderReference,
+        EngineResult engineResult,
+        CriticalPathOutcome criticalPathOutcome,
+        long? explicitShippingDurationMinutes)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(orderReference);
         ArgumentNullException.ThrowIfNull(engineResult);
@@ -58,7 +65,7 @@ public sealed class PredictionResultMapper
         var calendar = new WorkingCalendar(_options.WorkingCalendar.MinutesPerDay);
         var estimatedEnd = calendar.AddWorkingMinutes(estimatedStart, cpmResult.TotalWorkingMinutes);
 
-        var shippingResult = _shippingResolver.ResolveShippingDuration(null, _options);
+        var shippingResult = _shippingResolver.ResolveShippingDuration(explicitShippingDurationMinutes, _options);
         var estimatedDelivery = shippingResult.Value.HasValue
             ? estimatedEnd.Add(shippingResult.Value.Value)
             : estimatedEnd;

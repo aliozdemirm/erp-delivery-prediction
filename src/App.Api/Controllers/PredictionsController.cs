@@ -1,5 +1,6 @@
 using App.Api.Results;
 using App.Application.Prediction;
+using App.Application.Contracts.Prediction;
 using Microsoft.AspNetCore.Mvc;
 
 namespace App.Api.Controllers;
@@ -9,10 +10,14 @@ namespace App.Api.Controllers;
 public sealed class PredictionsController : ControllerBase
 {
     private readonly IPredictionCalculationService _predictionService;
+    private readonly IWhatIfPredictionCalculationService _whatIfPredictionService;
 
-    public PredictionsController(IPredictionCalculationService predictionService)
+    public PredictionsController(
+        IPredictionCalculationService predictionService,
+        IWhatIfPredictionCalculationService whatIfPredictionService)
     {
         _predictionService = predictionService ?? throw new ArgumentNullException(nameof(predictionService));
+        _whatIfPredictionService = whatIfPredictionService ?? throw new ArgumentNullException(nameof(whatIfPredictionService));
     }
 
     [HttpPost("calculate")]
@@ -25,6 +30,21 @@ public sealed class PredictionsController : ControllerBase
 
         var result = await _predictionService.CalculateAsync(request.OrderReference, cancellationToken);
 
+        if (!result.IsSuccess)
+        {
+            var problemDetails = ResultHttpMapper.ToProblemDetails(result.Error!);
+            return new ObjectResult(problemDetails) { StatusCode = problemDetails.Status };
+        }
+
+        return Ok(result.Value);
+    }
+
+    [HttpPost("simulate")]
+    public async Task<IActionResult> Simulate(
+        [FromBody] WhatIfPredictionRequest request,
+        CancellationToken cancellationToken)
+    {
+        var result = await _whatIfPredictionService.CalculateAsync(request, cancellationToken);
         if (!result.IsSuccess)
         {
             var problemDetails = ResultHttpMapper.ToProblemDetails(result.Error!);

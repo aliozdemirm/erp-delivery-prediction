@@ -11,6 +11,7 @@ const navItems: NavItem[] = [
   { label: 'Dashboard', to: '/' },
   { label: 'Orders', to: '/orders' },
   { label: 'Predictions', to: '/predictions' },
+  { label: 'What-If', to: '/what-if' },
 ];
 
 export default function Layout() {

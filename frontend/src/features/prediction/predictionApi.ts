@@ -4,10 +4,12 @@ import type {
   ProblemDetails,
   RuleBasedPredictionResult,
   TimelineItem,
+  WhatIfPredictionRequest,
 } from './predictionContracts';
 import { classifyProblem, PredictionApiError, toPredictionApiError } from './predictionErrors';
 
 export const PREDICTION_ENDPOINT = '/api/predictions/calculate';
+export const WHAT_IF_PREDICTION_ENDPOINT = '/api/predictions/simulate';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -77,6 +79,27 @@ export async function calculatePrediction(orderReference: string): Promise<RuleB
     });
     const body = await readBody(response);
 
+    if (!response.ok) {
+      const problem = typeof body === 'string' ? { detail: body } : parseProblemDetails(body);
+      throw classifyProblem(problem, response.status);
+    }
+    if (!isRuleBasedPredictionResult(body)) {
+      throw new PredictionApiError('The prediction service returned an unexpected response.', 'calculationFailure');
+    }
+    return body;
+  } catch (error: unknown) {
+    throw toPredictionApiError(error);
+  }
+}
+
+export async function simulatePrediction(request: WhatIfPredictionRequest): Promise<RuleBasedPredictionResult> {
+  try {
+    const response = await fetch(WHAT_IF_PREDICTION_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(request),
+    });
+    const body = await readBody(response);
     if (!response.ok) {
       const problem = typeof body === 'string' ? { detail: body } : parseProblemDetails(body);
       throw classifyProblem(problem, response.status);

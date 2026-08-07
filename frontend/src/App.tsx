@@ -5,6 +5,7 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Orders from './pages/Orders';
 import Predictions from './pages/Predictions';
+import WhatIf from './pages/WhatIf';
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 
@@ -65,6 +66,7 @@ function App() {
                 <Route path="/" element={<Dashboard />} />
                 <Route path="/orders" element={<Orders />} />
                 <Route path="/predictions" element={<Predictions />} />
+                <Route path="/what-if" element={<WhatIf />} />
               </Route>
             </Route>
             {/* Catch all */}

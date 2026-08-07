@@ -1,6 +1,7 @@
 using App.Api.Controllers;
 using App.Application.Common;
 using App.Application.Prediction;
+using App.Application.Contracts.Prediction;
 using Microsoft.AspNetCore.Mvc;
 using Moq;
 using Xunit;
@@ -11,11 +12,42 @@ public class PredictionsControllerTests
 {
     private readonly Mock<IPredictionCalculationService> _serviceMock;
     private readonly PredictionsController _controller;
+    private readonly Mock<IWhatIfPredictionCalculationService> _whatIfServiceMock;
 
     public PredictionsControllerTests()
     {
         _serviceMock = new Mock<IPredictionCalculationService>();
-        _controller = new PredictionsController(_serviceMock.Object);
+        _whatIfServiceMock = new Mock<IWhatIfPredictionCalculationService>();
+        _controller = new PredictionsController(_serviceMock.Object, _whatIfServiceMock.Object);
+    }
+
+    [Fact]
+    public async Task Simulate_PassesExactRequestAndReturnsSuccess()
+    {
+        var request = new WhatIfPredictionRequest { ProductReference = "P001", Quantity = 10, LocationReference = "istanbul" };
+        var predictionResult = new RuleBasedPredictionResult(
+            "WHATIF-P001", DateTimeOffset.UtcNow, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow,
+            [], [], [], []);
+        _whatIfServiceMock.Setup(service => service.CalculateAsync(request, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Result<RuleBasedPredictionResult>.Success(predictionResult));
+
+        var result = await _controller.Simulate(request, CancellationToken.None);
+
+        Assert.Same(predictionResult, Assert.IsType<OkObjectResult>(result).Value);
+        _whatIfServiceMock.Verify(service => service.CalculateAsync(request, CancellationToken.None), Times.Once);
+    }
+
+    [Fact]
+    public async Task Simulate_WhenServiceFails_UsesProblemDetailsMapping()
+    {
+        var request = new WhatIfPredictionRequest { ProductReference = "P001", Quantity = 10, LocationReference = "istanbul" };
+        _whatIfServiceMock.Setup(service => service.CalculateAsync(request, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Result<RuleBasedPredictionResult>.Failure(new Error("Data.Insufficient", "Insufficient.", ErrorType.Validation)));
+
+        var result = Assert.IsType<ObjectResult>(await _controller.Simulate(request, CancellationToken.None));
+
+        Assert.Equal(400, result.StatusCode);
+        Assert.Equal("Data.Insufficient", Assert.IsType<ProblemDetails>(result.Value).Extensions["errorCode"]);
     }
 
     [Fact]

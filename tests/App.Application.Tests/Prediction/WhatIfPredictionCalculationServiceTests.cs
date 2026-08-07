@@ -1,4 +1,5 @@
 using App.Application.Abstractions.Erp;
+using App.Application.Abstractions.Shipping;
 using App.Application.Common;
 using App.Application.Contracts.Configuration;
 using App.Application.Contracts.Erp;
@@ -120,6 +121,39 @@ public sealed class WhatIfPredictionCalculationServiceTests
             Times.Once);
     }
 
+    [Fact]
+    public async Task CalculateAsync_WhenRealRouteIsFound_UsesRealDuration()
+    {
+        var context = CreateContext();
+        var fixture = new Fixture(DataSufficiency.Sufficient, context);
+        fixture.SetupSuccessfulCpm(context);
+        fixture.ShippingReferenceResolver.Setup(resolver => resolver.Resolve("istanbul"))
+            .Returns(new WhatIfShippingRouteReferences("ORIGIN", "DESTINATION", "PROFILE"));
+        fixture.ShippingRouteLookup.Setup(service => service.GetRouteAsync("ORIGIN", "DESTINATION", "PROFILE", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ShippingRouteLookupResult.Found(120));
+
+        var result = await fixture.Service.CalculateAsync(ValidRequest());
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(result.Value.EstimatedEnd.AddMinutes(120), result.Value.EstimatedDelivery);
+        Assert.DoesNotContain(result.Value.AppliedFallbackReasons, reason => reason.Contains("Shipping", StringComparison.OrdinalIgnoreCase));
+        fixture.ShippingRouteLookup.Verify(service => service.GetRouteAsync("ORIGIN", "DESTINATION", "PROFILE", It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task CalculateAsync_WhenMappingIsUnavailable_PreservesFallbackWithoutLookup()
+    {
+        var context = CreateContext();
+        var fixture = new Fixture(DataSufficiency.Sufficient, context);
+        fixture.SetupSuccessfulCpm(context);
+
+        var result = await fixture.Service.CalculateAsync(ValidRequest());
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(result.Value.EstimatedEnd.AddMinutes(1440), result.Value.EstimatedDelivery);
+        fixture.ShippingRouteLookup.VerifyNoOtherCalls();
+    }
+
     [Theory]
     [InlineData(CriticalPathStatus.CycleDetected, "CPM.CycleDetected")]
     [InlineData(CriticalPathStatus.MissingPredecessorReference, "CPM.MissingPredecessorReference")]
@@ -151,7 +185,7 @@ public sealed class WhatIfPredictionCalculationServiceTests
     {
         ProductReference = "PROD-1",
         Quantity = 1,
-        LocationReference = "LOC-1"
+        LocationReference = "istanbul"
     };
 
     private static PredictionContext CreateContext(decimal quantity = 1) => new(
@@ -172,6 +206,8 @@ public sealed class WhatIfPredictionCalculationServiceTests
         public Mock<IErpDataProvider> ErpDataProvider { get; } = new();
         public Mock<IPredictionContextBuilder> ContextBuilder { get; } = new();
         public Mock<ICriticalPathCalculator> CriticalPathCalculator { get; } = new();
+        public Mock<IWhatIfShippingReferenceResolver> ShippingReferenceResolver { get; } = new();
+        public Mock<IShippingRouteLookupService> ShippingRouteLookup { get; } = new();
         public WhatIfPredictionCalculationService Service { get; }
 
         public Fixture(
@@ -220,7 +256,14 @@ public sealed class WhatIfPredictionCalculationServiceTests
                 builder,
                 engine,
                 CriticalPathCalculator.Object,
-                mapper);
+                mapper,
+                ShippingReferenceResolver.Object,
+                ShippingRouteLookup.Object);
         }
+
+        public void SetupSuccessfulCpm(PredictionContext context) => CriticalPathCalculator
+            .Setup(calculator => calculator.Calculate(context))
+            .Returns(CriticalPathOutcome.Success(new CriticalPathResult(
+                ["OP-1"], 60, [new OperationSchedule("OP-1", 0, 60, 0, 60, 0)])));
     }
 }

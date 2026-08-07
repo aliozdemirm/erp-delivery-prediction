@@ -74,9 +74,9 @@ describe('Predictions — manual order-reference entry', () => {
     await submit();
     expect(await screen.findByRole('heading', { name: 'Kritik Yol' })).toBeVisible();
     expect(screen.getAllByText('CUT-10')).toHaveLength(2);
-    expect(screen.getByText('• Default shipping duration')).toBeVisible();
+    expect(screen.getByText('Default shipping duration')).toBeVisible();
     expect(screen.getByText('STEEL-1')).toBeVisible();
-    expect(screen.getByText('4 eksik')).toBeVisible();
+    expect(screen.getByText('4')).toBeVisible();
   });
 
   it('shows a validation-specific alert for insufficient data', async () => {

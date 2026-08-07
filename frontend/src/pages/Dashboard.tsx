@@ -16,12 +16,10 @@ import {
   Typography,
   alpha,
   useTheme,
-  type Theme,
 } from '@mui/material';
 import DashboardOutlinedIcon from '@mui/icons-material/DashboardOutlined';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import CheckIcon from '@mui/icons-material/Check';
-import Inventory2OutlinedIcon from '@mui/icons-material/Inventory2Outlined';
 import { getProducts, type ProductListItem } from '../features/products/productsApi';
 import { fetchStockLevels } from '../features/stock/stockApi';
 import { stockStatus } from '../features/stock/stockStatus';
@@ -29,6 +27,14 @@ import type { ProductStock } from '../features/stock/stockContracts';
 import { fetchOrders } from '../features/orders/ordersApi';
 import DecorativeBlobs from '../components/DecorativeBlobs';
 import SemiCircleGauge from '../components/SemiCircleGauge';
+import Sparkline from '../components/Sparkline';
+
+function getGreeting() {
+  const hour = new Date().getHours();
+  if (hour < 12) return 'Günaydın';
+  if (hour < 18) return 'İyi Günler';
+  return 'İyi Akşamlar';
+}
 
 function getProductImage(name?: string) {
   const key = (name ?? '').trim().toLocaleLowerCase('tr-TR');
@@ -40,12 +46,6 @@ function getProductImage(name?: string) {
 }
 
 const cardAccents = ['interactiveBlue', 'statusSuccess.text', 'statusWarning.text', 'brand700'] as const;
-
-function resolveAccentColor(theme: Theme, accent: string): string {
-  const [key, sub] = accent.split('.') as [keyof Theme['palette'], string | undefined];
-  const value = theme.palette[key] as unknown;
-  return sub ? (value as Record<string, string>)[sub] : (value as string);
-}
 
 const locations = [
   { value: 'istanbul', label: 'İstanbul' },
@@ -209,17 +209,22 @@ export default function Dashboard() {
             >
               <DashboardOutlinedIcon sx={{ fontSize: 18, color: '#fff' }} />
             </Box>
-            <Typography component="h1" sx={{ fontSize: '24px', fontWeight: 700, color: 'textPrimary' }}>
-              Kontrol Paneli
-            </Typography>
+            <Box>
+              <Typography sx={{ fontSize: '14px', fontWeight: 600, color: 'textSecondary' }}>
+                {getGreeting()} Ali,
+              </Typography>
+              <Typography component="h1" sx={{ fontSize: '24px', fontWeight: 700, color: 'textPrimary', lineHeight: 1.1 }}>
+                Sistem harika görünüyor!
+              </Typography>
+            </Box>
           </Box>
-          <Typography sx={{ fontSize: '13.5px', color: 'textSecondary' }}>
+          <Typography sx={{ fontSize: '13.5px', color: 'textSecondary', mt: 1.5 }}>
             Bir ürün seçin, adet ve teslimat ili girin; sistem sizin için teslimat tahminini hesaplasın.
           </Typography>
         </Box>
       </Box>
 
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '3fr 1fr' }, gap: { xs: 4, lg: 6 }, alignItems: 'start' }}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '2fr 1fr' }, gap: { xs: 4, lg: 6 }, alignItems: 'start' }}>
         
         <Box>
           <Box sx={{ mb: 3 }}>
@@ -258,7 +263,6 @@ export default function Dashboard() {
                 const stock = stockByProduct[product.productReference];
                 const status = stock ? stockStatus(stock.availableQuantity) : null;
                 const accent = cardAccents[index % cardAccents.length];
-                const accentColor = resolveAccentColor(theme, accent);
                 const gaugePercent = stock ? Math.round((stock.availableQuantity / maxStockQuantity) * 100) : 0;
                 return (
                   <Card
@@ -272,7 +276,6 @@ export default function Dashboard() {
                       borderTopWidth: 3,
                       borderTopColor: isSelected ? 'interactiveBlue' : accent,
                       backgroundImage: 'none',
-                      bgcolor: alpha(accentColor, theme.palette.mode === 'dark' ? 0.07 : 0.05),
                       '&:hover': {
                         transform: 'translateY(-2px)',
                         boxShadow: theme.palette.mode === 'dark'
@@ -317,20 +320,22 @@ export default function Dashboard() {
                             </Box>
                           )}
                         </Box>
-                        <Box sx={{ flexShrink: 0 }}>
-                          <Box 
-                            component="img" 
-                            src={getProductImage(product.name)} 
-                            alt={product.name ?? 'Ürün görseli'}
-                            sx={{ 
-                              width: 80, 
-                              height: 80, 
-                              objectFit: 'contain', 
-                              mixBlendMode: (theme) => theme.palette.mode === 'dark' ? 'screen' : 'multiply',
-                              borderRadius: 2
-                            }} 
-                          />
-                        </Box>
+                        {getProductImage(product.name) && (
+                          <Box sx={{ flexShrink: 0 }}>
+                            <Box
+                              component="img"
+                              src={getProductImage(product.name)}
+                              alt={product.name ?? 'Ürün görseli'}
+                              sx={{
+                                width: 72,
+                                height: 72,
+                                objectFit: 'contain',
+                                mixBlendMode: (theme) => theme.palette.mode === 'dark' ? 'screen' : 'multiply',
+                                borderRadius: 2
+                              }}
+                            />
+                          </Box>
+                        )}
                       </CardContent>
                     </CardActionArea>
                   </Card>
@@ -404,29 +409,38 @@ export default function Dashboard() {
           <Typography component="h2" sx={{ fontSize: '16px', fontWeight: 700, mb: 2, color: 'textPrimary' }}>
             Sistem Durumu
           </Typography>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <Card variant="outlined" sx={{ bgcolor: alpha(theme.palette.brand700 as string || '#000', 0.05), borderColor: alpha(theme.palette.brand700 as string || '#000', 0.2), borderRadius: 3 }}>
-              <CardContent>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+            <Card variant="outlined" sx={{ borderColor: alpha(theme.palette.brand700 as string || '#000', 0.2), borderRadius: 2 }}>
+              <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
                 <Typography sx={{ color: 'textSecondary', fontSize: '13px', fontWeight: 600 }}>Toplam Ürün Çeşidi</Typography>
                 <Typography sx={{ fontSize: '28px', fontWeight: 800, mt: 1, color: 'brand700' }}>
                   {productsState.status === 'success' ? totalProducts : '-'}
                 </Typography>
+                {productsState.status === 'success' && (
+                  <Sparkline color={theme.palette.brand700 as string} data={[1, 2, 2, 3, 4, 4, 4]} />
+                )}
               </CardContent>
             </Card>
-            <Card variant="outlined" sx={{ bgcolor: alpha(theme.palette.interactiveBlue as string || '#000', 0.05), borderColor: alpha(theme.palette.interactiveBlue as string || '#000', 0.2), borderRadius: 3 }}>
-              <CardContent>
+            <Card variant="outlined" sx={{ borderColor: alpha(theme.palette.interactiveBlue as string || '#000', 0.2), borderRadius: 2 }}>
+              <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
                 <Typography sx={{ color: 'textSecondary', fontSize: '13px', fontWeight: 600 }}>Depodaki Toplam Stok</Typography>
                 <Typography sx={{ fontSize: '28px', fontWeight: 800, mt: 1, color: 'interactiveBlue' }}>
                   {Object.keys(stockByProduct).length > 0 ? totalStock.toLocaleString('tr-TR') : '-'}
                 </Typography>
+                {Object.keys(stockByProduct).length > 0 && (
+                  <Sparkline color={theme.palette.interactiveBlue as string} data={[1200, 1100, 1150, 1050, 1250, totalStock]} />
+                )}
               </CardContent>
             </Card>
-            <Card variant="outlined" sx={{ bgcolor: alpha((theme.palette.statusSuccess as any)?.text || '#000', 0.05), borderColor: alpha((theme.palette.statusSuccess as any)?.text || '#000', 0.2), borderRadius: 3 }}>
-              <CardContent>
+            <Card variant="outlined" sx={{ borderColor: alpha((theme.palette.statusSuccess as any)?.text || '#000', 0.2), borderRadius: 2 }}>
+              <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
                 <Typography sx={{ color: 'textSecondary', fontSize: '13px', fontWeight: 600 }}>Aktif Siparişler</Typography>
                 <Typography sx={{ fontSize: '28px', fontWeight: 800, mt: 1, color: 'statusSuccess.text' }}>
                   {ordersCount !== null ? ordersCount.toLocaleString('tr-TR') : '-'}
                 </Typography>
+                {ordersCount !== null && (
+                  <Sparkline color={(theme.palette.statusSuccess as any)?.text as string} data={[5, 12, 10, 20, 18, 25, ordersCount]} />
+                )}
               </CardContent>
             </Card>
           </Box>

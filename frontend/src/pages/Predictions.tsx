@@ -6,6 +6,14 @@ import { calculatePrediction, simulatePrediction } from '../features/prediction/
 import { PredictionApiError, toPredictionApiError } from '../features/prediction/predictionErrors';
 import type { RuleBasedPredictionResult } from '../features/prediction/predictionContracts';
 import PredictionResultView from '../features/prediction/PredictionResultView';
+import DeliveryMap from '../components/DeliveryMap';
+
+const plateMap: Record<string, number> = {
+  istanbul: 34,
+  ankara: 6,
+  bursa: 16,
+  izmir: 35
+};
 
 interface SimulateContext {
   productReference: string;
@@ -142,7 +150,18 @@ export default function Predictions() {
       {state.status === 'calculationFailure' && (
         <Alert severity="error" role="alert" sx={{ mb: 4 }}><AlertTitle>{failureTitle}</AlertTitle>{state.message}</Alert>
       )}
-      {state.status === 'success' && <PredictionResultView result={state.result} />}
+      {state.status === 'success' && (
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: simulateContext ? '380px 1fr' : '1fr' }, gap: 3, alignItems: 'start' }}>
+          {simulateContext && (
+            <Box sx={{ position: { lg: 'sticky' }, top: { lg: 88 } }}>
+              <DeliveryMap destinationPlate={plateMap[simulateContext.locationReference]} />
+            </Box>
+          )}
+          <Box>
+            <PredictionResultView result={state.result} />
+          </Box>
+        </Box>
+      )}
     </Box>
   );
 }

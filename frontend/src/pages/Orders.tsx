@@ -17,10 +17,15 @@ import {
   TableSortLabel,
   TextField,
   Typography,
+  Card,
+  CardContent,
 } from '@mui/material';
 import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined';
 import ListAltOutlinedIcon from '@mui/icons-material/ListAltOutlined';
-import EventOutlinedIcon from '@mui/icons-material/EventOutlined';
+import Inventory2OutlinedIcon from '@mui/icons-material/Inventory2Outlined';
+import CategoryOutlinedIcon from '@mui/icons-material/CategoryOutlined';
+import InsightsOutlinedIcon from '@mui/icons-material/InsightsOutlined';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 import { fetchOrders, OrdersApiError } from '../features/orders/ordersApi';
 import type { OrderSummary } from '../features/orders/ordersContracts';
 import { useTableSearchSort } from '../hooks/useTableSearchSort';
@@ -34,19 +39,11 @@ type OrdersState =
   | { status: 'empty' }
   | { status: 'error'; message: string };
 
+const COLORS = ['#2563EB', '#10B981', '#F59E0B', '#6366F1', '#EC4899', '#8B5CF6'];
+
 function displayDateOnly(value: string): string {
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? 'Teslim tarihi mevcut değil' : date.toLocaleDateString();
-}
-
-function findNearestDeliveryDate(orders: OrderSummary[]): string {
-  let nearest: Date | null = null;
-  for (const order of orders) {
-    const date = new Date(order.requestedDeliveryDateTime);
-    if (Number.isNaN(date.getTime())) continue;
-    if (!nearest || date < nearest) nearest = date;
-  }
-  return nearest ? nearest.toLocaleDateString() : '—';
 }
 
 const columns: Array<{ key: string; label: string }> = [
@@ -97,6 +94,35 @@ export default function Orders() {
     navigate('/predictions', { state: { orderReference: selectedOrderReference } });
   };
 
+  // Analytics Calculations
+  const totalOrders = orders.length;
+  const totalVolume = orders.reduce((sum, order) => sum + order.quantity, 0);
+  
+  const productDistribution = orders.reduce((acc, order) => {
+    const product = order.productReference;
+    acc[product] = (acc[product] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+  
+  const uniqueProducts = Object.keys(productDistribution).length;
+  const avgVolumePerOrder = totalOrders > 0 ? Math.round(totalVolume / totalOrders) : 0;
+
+  const pieData = Object.keys(productDistribution).map((key) => ({
+    name: key,
+    value: productDistribution[key],
+  }));
+
+  const volumeDistribution = orders.reduce((acc, order) => {
+    const product = order.productReference;
+    acc[product] = (acc[product] || 0) + order.quantity;
+    return acc;
+  }, {} as Record<string, number>);
+
+  const barData = Object.keys(volumeDistribution).map((key) => ({
+    name: key,
+    volume: volumeDistribution[key],
+  })).sort((a, b) => b.volume - a.volume);
+
   return (
     <Box>
       <Box sx={{ position: 'relative', pb: 1, mb: 1 }}>
@@ -115,9 +141,11 @@ export default function Orders() {
           </Typography>
 
           {state.status === 'success' && (
-            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2,1fr)' }, gap: 2, mb: 3 }}>
-              <StatCard label="Toplam Sipariş" value={orders.length} icon={ListAltOutlinedIcon} accent="interactiveBlue" />
-              <StatCard label="En Yakın Teslim Tarihi" value={0} valueText={findNearestDeliveryDate(orders)} icon={EventOutlinedIcon} accent="statusWarning" />
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr 1fr', md: '1fr 1fr 1fr 1fr' }, gap: 2, mb: 3 }}>
+              <StatCard label="Toplam Sipariş" value={totalOrders} icon={ListAltOutlinedIcon} accent="interactiveBlue" />
+              <StatCard label="Toplam Ürün Hacmi" value={totalVolume} suffix="adet" icon={Inventory2OutlinedIcon} accent="statusSuccess" />
+              <StatCard label="Çeşit (Benzersiz Ürün)" value={uniqueProducts} icon={CategoryOutlinedIcon} accent="statusWarning" />
+              <StatCard label="Ort. Sipariş Büyüklüğü" value={avgVolumePerOrder} suffix="adet" icon={InsightsOutlinedIcon} accent="statusCritical" />
             </Box>
           )}
         </Box>
@@ -142,6 +170,43 @@ export default function Orders() {
 
       {state.status === 'success' && (
         <>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 1fr' }, gap: 3, mb: 4 }}>
+            <Card variant="outlined" sx={{ borderRadius: 3, boxShadow: (theme) => theme.palette.mode === 'dark' ? '0 4px 20px rgba(0,0,0,0.4)' : '0 4px 20px rgba(0,0,0,0.03)', bgcolor: 'background.paper' }}>
+              <CardContent sx={{ p: 2, display: 'flex', flexDirection: 'column', height: '100%' }}>
+                <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 700, color: 'textPrimary' }}>Ürün Çeşidi Dağılımı</Typography>
+                <Box sx={{ height: 250 }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie data={pieData} cx="50%" cy="50%" innerRadius={60} outerRadius={90} paddingAngle={5} dataKey="value" label={({ name, percent }) => `${name} (${((percent ?? 0) * 100).toFixed(0)}%)`} stroke="none" isAnimationActive={false}>
+                        {pieData.map((_entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
+                      </Pie>
+                      <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.08)', backgroundColor: 'rgba(255, 255, 255, 0.95)', color: '#000' }} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </Box>
+              </CardContent>
+            </Card>
+
+            <Card variant="outlined" sx={{ borderRadius: 3, boxShadow: (theme) => theme.palette.mode === 'dark' ? '0 4px 20px rgba(0,0,0,0.4)' : '0 4px 20px rgba(0,0,0,0.03)', bgcolor: 'background.paper' }}>
+              <CardContent sx={{ p: 2, display: 'flex', flexDirection: 'column', height: '100%' }}>
+                <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 700, color: 'textPrimary' }}>En Çok Talep Gören Ürünler</Typography>
+                <Box sx={{ height: 250 }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={barData} margin={{ top: 20, right: 30, left: -20, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e0e0e0" opacity={0.4} />
+                      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#888', fontSize: 12 }} />
+                      <YAxis axisLine={false} tickLine={false} tick={{ fill: '#888', fontSize: 12 }} />
+                      <Tooltip cursor={{ fill: 'rgba(37,99,235,0.05)' }} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.08)', backgroundColor: 'rgba(255, 255, 255, 0.95)', color: '#000' }} />
+                      <Bar dataKey="volume" radius={[4, 4, 0, 0]} isAnimationActive={false}>
+                        {barData.map((_entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </Box>
+              </CardContent>
+            </Card>
+          </Box>
+
           <Box
             sx={{
               display: 'flex',

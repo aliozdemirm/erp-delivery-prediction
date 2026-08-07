@@ -10,6 +10,7 @@ import LightModeOutlinedIcon from '@mui/icons-material/LightModeOutlined';
 import LogoutOutlinedIcon from '@mui/icons-material/LogoutOutlined';
 import { useAuth } from '../context/AuthContext';
 import { useThemeMode } from '../context/ThemeModeContext';
+import MeshGradientBackground from './MeshGradientBackground';
 
 interface NavItem {
   label: string;
@@ -44,7 +45,8 @@ export default function Layout() {
   };
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', bgcolor: 'surfacePage' }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', bgcolor: 'transparent', position: 'relative' }}>
+      <MeshGradientBackground />
       <AppBar position="sticky" sx={{ top: 0 }}>
         <Toolbar sx={{ flexWrap: { xs: 'wrap', md: 'nowrap' }, gap: 1, py: { xs: 1, md: 0 } }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, flexGrow: 1 }}>

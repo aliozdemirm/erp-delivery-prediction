@@ -22,7 +22,8 @@ describe('PredictionResultView', () => {
   it('summarizes repeated fallback reasons instead of listing duplicates', () => {
     const reasons = ['No Open PO found, using fallback lead time', 'No Open PO found, using fallback lead time', 'No Open PO found, using fallback lead time'];
     render(<PredictionResultView result={{ ...base, appliedFallbackReasons: reasons }} />);
-    expect(screen.getByText('• No Open PO found, using fallback lead time (3 kez)')).toBeVisible();
+    expect(screen.getByText('No Open PO found, using fallback lead time')).toBeVisible();
+    expect(screen.getByText('3 kez')).toBeVisible();
   });
 
   it('shows the critical-path empty state when no timeline item is critical', () => {
